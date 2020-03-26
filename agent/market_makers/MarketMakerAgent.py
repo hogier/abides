@@ -77,7 +77,7 @@ class MarketMakerAgent(TradingAgent):
                 mid = int((ask + bid) / 2)
                 spread = int(abs(ask - bid)/2)
             else:
-                log_print(f"SPREAD MISSING at time {currentTime}")
+                log_print("SPREAD MISSING at time {}", currentTime)
                 spread = self.last_spread
 
             for i in range(self.num_levels):

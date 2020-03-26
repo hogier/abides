@@ -114,7 +114,7 @@ class POVMarketMakerAgent(TradingAgent):
                     self.last_mid = mid
                     self.state['AWAITING_SPREAD'] = False
                 else:
-                    log_print(f"SPREAD MISSING at time {currentTime}")
+                    log_print("SPREAD MISSING at time {}", currentTime)
 
             if self.state['AWAITING_SPREAD'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
                 self.cancelAllOrders()
@@ -131,7 +131,7 @@ class POVMarketMakerAgent(TradingAgent):
                     self.last_mid = mid
                     self.state['AWAITING_MARKET_DATA'] = False
                 else:
-                    log_print(f"SPREAD MISSING at time {currentTime}")
+                    log_print("SPREAD MISSING at time {}", currentTime)
                     self.state['AWAITING_MARKET_DATA'] = False
 
             if self.state['MARKET_DATA'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
@@ -178,11 +178,11 @@ class POVMarketMakerAgent(TradingAgent):
 
         bid_orders, ask_orders = self.computeOrdersToPlace(mid)
         for bid_price in bid_orders:
-            log_print(f'{self.name}: Placing BUY limit order of size {self.order_size} @ price {bid_price}')
+            log_print('{}: Placing BUY limit order of size {} @ price {}', self.name, self.order_size, bid_price)
             self.placeLimitOrder(self.symbol, self.order_size, True, bid_price)
 
         for ask_price in ask_orders:
-            log_print(f'{self.name}: Placing SELL limit order of size {self.order_size} @ price {ask_price}')
+            log_print('{}: Placing SELL limit order of size {} @ price {}', self.name, self.order_size, ask_price)
             self.placeLimitOrder(self.symbol, self.order_size, False, ask_price)
 
     def getWakeFrequency(self):

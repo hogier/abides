@@ -91,7 +91,7 @@ class SpreadBasedMarketMakerAgent(TradingAgent):
             if bid and ask:
                 mid = int((ask + bid) / 2)
             else:
-                log_print(f"SPREAD MISSING at time {currentTime}")
+                log_print("SPREAD MISSING at time {}", currentTime)
 
             orders_to_cancel = self.computeOrdersToCancel(mid)
             self.cancelOrders(orders_to_cancel)
@@ -107,7 +107,7 @@ class SpreadBasedMarketMakerAgent(TradingAgent):
             if bid and ask:
                 mid = int((ask + bid) / 2)
             else:
-                log_print(f"SPREAD MISSING at time {currentTime}")
+                log_print("SPREAD MISSING at time {}", currentTime)
                 return
 
             orders_to_cancel = self.computeOrdersToCancel(mid)
@@ -232,11 +232,11 @@ class SpreadBasedMarketMakerAgent(TradingAgent):
 
         bid_orders, ask_orders = self.computeOrdersToPlace(mid)
         for bid_order in bid_orders:
-            log_print(f'{self.name}: Placing BUY limit order of size {self.order_size} @ price {bid_order.price}')
+            log_print('{}: Placing BUY limit order of size {} @ price {}', self.name, self.order_size, bid_order.price)
             self.placeLimitOrder(self.symbol, self.order_size, True, bid_order.price, order_id=bid_order.id)
 
         for ask_order in ask_orders:
-            log_print(f'{self.name}: Placing SELL limit order of size {self.order_size} @ price {ask_order.price}')
+            log_print('{}: Placing SELL limit order of size {} @ price {}', self.name, self.order_size, ask_order.price)
             self.placeLimitOrder(self.symbol, self.order_size, False, ask_order.price, order_id=ask_order.id)
 
     def initialiseBidsAsksDeques(self, mid):
