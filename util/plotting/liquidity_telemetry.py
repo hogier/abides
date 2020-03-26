@@ -11,23 +11,25 @@ import matplotlib.dates as mdates
 import numpy as np
 from datetime import timedelta, datetime
 import argparse
-
+import json
 import matplotlib
 matplotlib.rcParams['agg.path.chunksize'] = 10000
 
 
-PLOT_PARAMS_DICT = {
-    'xmin': '09:32:00',
-    'xmax': '09:45:00',
-    'linewidth': 0.7,
-    'no_bids_color': 'blue',
-    'no_asks_color': 'red',
-    'transacted_volume_binwidth': 120,
-    'shade_start_time': '01:00:00',  # put outside xmin:xmax so not visible
-    'shade_end_time': '01:30:00'
-}
+# PLOT_PARAMS_DICT = {
+#     'xmin': '09:32:00',
+#     'xmax': '13:30:00',
+#     'linewidth': 0.7,
+#     'no_bids_color': 'blue',
+#     'no_asks_color': 'red',
+#     'transacted_volume_binwidth': 120,
+#     'shade_start_time': '01:00:00',  # put outside xmin:xmax so not visible
+#     'shade_end_time': '01:30:00'
+# }
 
-LIQUDITIY_DROPOUT_BUFFER = 360  # Time in seconds used to "buffer" as indicating start and end of trading
+PLOT_PARAMS_DICT = None
+
+LIQUIDITY_DROPOUT_BUFFER = 360  # Time in seconds used to "buffer" as indicating start and end of trading
 
 
 def create_orderbooks(exchange_path, ob_path):
@@ -88,7 +90,7 @@ def make_liquidity_dropout_events(processed_orderbook):
     return no_bid_idx, no_ask_idx
 
 
-def print_liquidity_stats(transacted_orders, no_bid_idx, no_ask_idx, liquidity_dropout_buffer=LIQUDITIY_DROPOUT_BUFFER):
+def print_liquidity_stats(transacted_orders, no_bid_idx, no_ask_idx, liquidity_dropout_buffer=LIQUIDITY_DROPOUT_BUFFER):
     """ Print statistics about liquidity to STDERR. """
 
     sys.stderr.write("Liquidity statistics:\n")
@@ -316,6 +318,11 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose',
                         help="Print some summary statistics to stderr.",
                         action='store_true')
+    parser.add_argument('--plot-config',
+                        help='Name of config file to execute. '
+                             'See configs/telemetry_config.example.json for an example.',
+                        default='configs/telemetry_config.example.json',
+                        type=str)
 
     args, remaining_args = parser.parse_known_args()
 
@@ -324,5 +331,7 @@ if __name__ == '__main__':
     book = args.book
     title = args.plot_title
     verbose = args.verbose
+    with open(args.plot_config, 'r') as f:
+        PLOT_PARAMS_DICT = json.load(f)
 
     main(stream, book, title=title, outfile=out_filepath, verbose=verbose)
