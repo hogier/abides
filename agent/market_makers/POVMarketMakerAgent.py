@@ -3,10 +3,12 @@ import pandas as pd
 from util.util import log_print
 from collections import namedtuple, deque
 from util.util import ignored
+from math import floor, ceil
 
 
 ANCHOR_TOP_STR = 'top'
 ANCHOR_BOTTOM_STR = 'bottom'
+ANCHOR_MIDDLE_STR = 'middle'
 
 
 class POVMarketMakerAgent(TradingAgent):
@@ -15,8 +17,8 @@ class POVMarketMakerAgent(TradingAgent):
         period.
     """
 
-    def __init__(self, id, name, type, symbol, starting_cash, pov=0.05, min_order_size=20, window_size=5, anchor=ANCHOR_BOTTOM_STR,
-                 num_ticks=20, wake_up_freq='1s', subscribe=False, subscribe_freq=10e9, subscribe_num_levels=1,
+    def __init__(self, id, name, type, symbol, starting_cash, pov=0.05, min_order_size=20, window_size=5, anchor=ANCHOR_MIDDLE_STR,
+                 num_ticks=20, wake_up_freq='1s', subscribe=False, subscribe_freq=10e9, subscribe_num_levels=1, cancel_limit_delay=50,
                  log_orders=False, random_state=None):
 
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
@@ -32,6 +34,7 @@ class POVMarketMakerAgent(TradingAgent):
         self.subscribe_freq = subscribe_freq  # Frequency in nanoseconds^-1 at which to receive market updates
                                               # in subscribe mode
         self.subscribe_num_levels = subscribe_num_levels  # Number of orderbook levels in subscription mode
+        self.cancel_limit_delay  = cancel_limit_delay  # delay in nanoseconds between order cancellations and new limit order placements
         self.log_orders = log_orders
 
         ## Internal variables
@@ -62,8 +65,9 @@ class POVMarketMakerAgent(TradingAgent):
         :param anchor: str
         :return:
         """
-        if anchor not in [ANCHOR_TOP_STR, ANCHOR_BOTTOM_STR]:
-            raise ValueError(f"Variable anchor must take the value `{ANCHOR_BOTTOM_STR}` or `{ANCHOR_TOP_STR}`")
+        if anchor not in [ANCHOR_TOP_STR, ANCHOR_BOTTOM_STR, ANCHOR_MIDDLE_STR]:
+            raise ValueError(f"Variable anchor must take the value `{ANCHOR_BOTTOM_STR}`, `{ANCHOR_MIDDLE_STR}` or "
+                             f"`{ANCHOR_TOP_STR}`")
         else:
             return anchor
 
@@ -118,6 +122,7 @@ class POVMarketMakerAgent(TradingAgent):
 
             if self.state['AWAITING_SPREAD'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
                 self.cancelAllOrders()
+                self.delay(self.cancel_limit_delay)
                 self.placeOrders(mid)
                 self.state = self.initialiseState()
                 self.setWakeup(currentTime + self.getWakeFrequency())
@@ -135,6 +140,8 @@ class POVMarketMakerAgent(TradingAgent):
                     self.state['AWAITING_MARKET_DATA'] = False
 
             if self.state['MARKET_DATA'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
+                # self.cancelAllOrders()
+                # self.delay(self.cancel_limit_delay)
                 self.placeOrders(mid)
                 self.state = self.initialiseState()
 
@@ -153,7 +160,10 @@ class POVMarketMakerAgent(TradingAgent):
         :return:
         """
 
-        if self.anchor == ANCHOR_BOTTOM_STR:
+        if self.anchor == ANCHOR_MIDDLE_STR:
+            highest_bid = int(mid) - floor(0.5 * self.window_size)
+            lowest_ask = int(mid) + ceil(0.5 * self.window_size)
+        elif self.anchor == ANCHOR_BOTTOM_STR:
             highest_bid = int(mid - 1)
             lowest_ask = int(mid + self.window_size)
         elif self.anchor == ANCHOR_TOP_STR:
