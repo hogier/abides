@@ -253,7 +253,7 @@ pov_agent = POVExecutionAgent(id=agent_count,
                               direction=pov_direction,
                               quantity=pov_quantity,
                               trade=trade,
-                              log_orders=True,
+                              log_orders=True,  # needed for plots so conflicts with others
                               random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
                                                                                           dtype='uint64')))
 
@@ -269,28 +269,31 @@ agent_count += 1
 kernel = Kernel("RMSC03 Kernel", random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
                                                                                                   dtype='uint64')))
 
-kernelStartTime = mkt_open - pd.to_timedelta('00:01:00')
+kernelStartTime = historical_date
 kernelStopTime = mkt_close + pd.to_timedelta('00:01:00')
 
-defaultComputationDelay = 1000  # one millisecond
+defaultComputationDelay = 50  # 50 nanoseconds
 
 # LATENCY
+
 latency_rstate = np.random.RandomState(seed=np.random.randint(low=0, high=2**32))
 pairwise = (agent_count, agent_count)
 
+# All agents sit on line from Seattle to NYC
+nyc_to_seattle_meters = 3866660
+pairwise_distances = util.generate_uniform_random_pairwise_dist_on_line(0.0, nyc_to_seattle_meters, agent_count,
+                                                                        random_state=latency_rstate)
+pairwise_latencies = util.meters_to_light_ns(pairwise_distances)
+
 model_args = {
     'connected': True,
-    'min_latency': np.random.uniform(low=21000, high=100000, size=pairwise),  # All in NYC
-    'jitter': 0.3,
-    'jitter_clip': 0.05,
-    'jitter_unit': 5
+    'min_latency': pairwise_latencies
 }
 
-latency_model = LatencyModel(latency_model='cubic',
+latency_model = LatencyModel(latency_model='deterministic',
                              random_state=latency_rstate,
                              kwargs=model_args
                              )
-
 # KERNEL
 
 kernel.runner(agents=agents,
@@ -300,6 +303,7 @@ kernel.runner(agents=agents,
               defaultComputationDelay=defaultComputationDelay,
               oracle=oracle,
               log_dir=args.log_dir)
+
 
 simulation_end_time = dt.datetime.now()
 print("Simulation End Time: {}".format(simulation_end_time))

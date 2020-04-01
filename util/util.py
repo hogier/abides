@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from contextlib import contextmanager
 import warnings
+from scipy.spatial.distance import pdist
 
 # General purpose utility functions for the simulator, attached to no particular class.
 # Available to any agent or other module/utility.  Should not require references to
@@ -100,3 +101,31 @@ def ignored(warning_str, *exceptions):
         if not silent_mode:
             print(warning_str)
 
+
+def generate_uniform_random_pairwise_dist_on_line(left, right, num_points, random_state=None):
+    """ Uniformly generate points on an interval, and return numpy array of pairwise distances between points.
+
+    :param left: left endpoint of interval
+    :param right: right endpoint of interval
+    :param num_points: number of points to use
+    :param random_state: np.RandomState object
+
+
+    :return:
+    """
+
+    x_coords = random_state.uniform(low=left, high=right, size=num_points)
+    x_coords = x_coords.reshape((x_coords.size, 1))
+    out = pdist(x_coords, 'euclidean')
+    return out
+
+
+def meters_to_light_ns(x):
+    """ Converts x in units of meters to light nanoseconds
+
+    :param x:
+    :return:
+    """
+    x_lns = x / 299792458e-9
+    x_lns = x_lns.astype(int)
+    return x_lns
