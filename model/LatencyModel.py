@@ -68,6 +68,10 @@ class LatencyModel:
       0.95	0.00	0.12	0.23	0.35	0.47	0.58	0.70	0.82	0.93	1.05	1.17
       0.99	0.00	0.10	0.21	0.31	0.41	0.52	0.62	0.72	0.82	0.93	1.03
       1.00	0.00	0.10	0.20	0.30	0.40	0.50	0.60	0.70	0.80	0.90	1.00
+
+  -------
+
+  The 'deterministic' model computes the final latency for a message simply as: min_latency.
   """
  
 
@@ -99,6 +103,11 @@ class LatencyModel:
       kwargs.setdefault('jitter', 0.5)
       kwargs.setdefault('jitter_clip', 0.1)
       kwargs.setdefault('jitter_unit', 10.0)
+
+    elif (latency_model.lower() == 'deterministic'):
+      if 'min_latency' not in kwargs:
+        print ("Config error: deterministic latency model requires parameter 'min_latency' as 2-D ndarray.")
+        sys.exit()
     else:
       print (f"Config error: unknown latency model requested ({latency_model.lower()})")
       sys.exit()
@@ -119,7 +128,11 @@ class LatencyModel:
 
     kw = self.kwargs
 
-    if self.latency_model == 'cubic':
+    if self.latency_model == 'deterministic':
+      min_latency = self._extract( kw['min_latency'], sender_id, recipient_id )
+      return min_latency
+
+    elif self.latency_model == 'cubic':
       # Generate latency for a single message using the cubic model.
 
       # If agents cannot communicate in this direction, return special latency -1.
