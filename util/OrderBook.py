@@ -372,12 +372,15 @@ class OrderBook:
             TODO: make into shared transaction dataframe continuously updated rather than recreated
         """
 
+        # Load history into DataFrame
         unrolled_history = []
         for elem in self.history:
             for _, val in elem.items():
                 unrolled_history.append(val)
 
-        unrolled_history_df = json_normalize(unrolled_history)
+        unrolled_history_df = pd.DataFrame(unrolled_history, columns=[
+            'entry_time', 'quantity', 'is_buy_order', 'limit_price', 'transactions', 'modifications', 'cancellations'
+        ])
 
         if unrolled_history_df.empty:
             return 0
@@ -396,7 +399,6 @@ class OrderBook:
         executed_within_lookback_period = unrolled_transactions[unrolled_transactions['execution_time'] >= window_start]
         transacted_volume = executed_within_lookback_period['quantity'].sum()
 
-        # print(f'transacted_volume: {transacted_volume}')
         return transacted_volume
 
     # These could be moved to the LimitOrder class.  We could even operator overload them
