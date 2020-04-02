@@ -12,6 +12,10 @@ from pandas.io.json import json_normalize
 from pprint import pprint
 from functools import reduce
 
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
+
 class OrderBook:
 
     # An OrderBook requires an owning agent object, which it will use to send messages
@@ -363,7 +367,10 @@ class OrderBook:
 
     def get_transacted_volume(self, lookback_period='10min'):
         """ Method retrieves the total transacted volume for a symbol over a lookback period finishing at the current
-            simulation time. """
+            simulation time.
+
+            TODO: make into shared transaction dataframe continuously updated rather than recreated
+        """
 
         unrolled_history = []
         for elem in self.history:
@@ -375,19 +382,11 @@ class OrderBook:
         if unrolled_history_df.empty:
             return 0
 
-        executed_transactions = unrolled_history_df[
-            unrolled_history_df['transactions'].map(lambda d: len(d)) > 0]  # remove cells that are an empty list
+        executed_transactions = unrolled_history_df[unrolled_history_df['transactions'].map(lambda d: len(d)) > 0]  # remove cells that are an empty list
 
         #  Reshape into DataFrame with columns ['execution_time', 'quantity']
-        unrolled_transactions = executed_transactions['transactions'].apply(pd.Series)
-        unrolled_transactions = reduce(lambda col1, col2: pd.concat([col1, col2], axis=0),
-                                       [unrolled_transactions[col] for col in unrolled_transactions.columns])
-        unrolled_transactions = unrolled_transactions.dropna()
-        unrolled_transactions = unrolled_transactions.apply(pd.Series)
-        unrolled_transactions = unrolled_transactions.rename(columns={
-            0: 'execution_time',
-            1: 'quantity'
-        })
+        transaction_list = [element for list_ in executed_transactions['transactions'].values for element in list_]
+        unrolled_transactions = pd.DataFrame(transaction_list, columns=['execution_time', 'quantity'])
         unrolled_transactions = unrolled_transactions.sort_values(by=['execution_time'])
         unrolled_transactions = unrolled_transactions.drop_duplicates(keep='last')
 
@@ -397,6 +396,7 @@ class OrderBook:
         executed_within_lookback_period = unrolled_transactions[unrolled_transactions['execution_time'] >= window_start]
         transacted_volume = executed_within_lookback_period['quantity'].sum()
 
+        # print(f'transacted_volume: {transacted_volume}')
         return transacted_volume
 
     # These could be moved to the LimitOrder class.  We could even operator overload them
