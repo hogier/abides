@@ -117,6 +117,7 @@ r_bar = 1e5
 sigma_n = r_bar / 10
 kappa = 1.67e-15
 lambda_a = 7e-11
+# lambda_a = 7e-10
 
 # Oracle
 symbols = {symbol: {'r_bar': r_bar,
@@ -180,31 +181,38 @@ agents.extend([ValueAgent(id=j,
 agent_count += num_value
 agent_types.extend(['ValueAgent'])
 
-# 4) Market Maker Agent
+# 4) Market Maker Agents
 
-mm_wake_up_freq = '10S'  # How often the market maker wakes up
-mm_pov = 0.05  # Percentage of transacted volume seen in previous `mm_wake_up_freq` that
-               # the market maker places at each level
+"""
+window_size ==  Spread of market maker (in ticks) around the mid price
+pov == Percentage of transacted volume seen in previous `mm_wake_up_freq` that
+       the market maker places at each level
+num_ticks == Number of levels to place orders in around the spread
+wake_up_freq == How often the market maker wakes up
+
+"""
+# each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq)
+# mm_params = [(2, 0.02, 1, '1S'), (4, 0.01, 4, '10S'), (10, 0.005, 100, '2min')]
+# mm_params = [(8, 0.02, 4, '10S'), (12, 0.005, 100, '2min')]
+mm_params = [(5, 0.05, 50, '10S')]
+num_mm_agents = len(mm_params)
+
 mm_min_order_size = 25  # Minimum size of of order placed in `transacted_volume * mm_pov` is smaller
-mm_window_size = 5  # Spread of market maker (in ticks) around the mid price
-mm_num_ticks = 50  # Number of levels to place orders in around the spread
 
-
-num_mm_agents = 1
 agents.extend([POVMarketMakerAgent(id=j,
                                 name="POV_MARKET_MAKER_AGENT_{}".format(j),
                                 type='POVMarketMakerAgent',
                                 symbol=symbol,
                                 starting_cash=starting_cash,
-                                pov=mm_pov,
+                                pov=mm_params[idx][1],
                                 min_order_size=mm_min_order_size,
-                                window_size=mm_window_size,
-                                num_ticks=mm_num_ticks,
-                                wake_up_freq=mm_wake_up_freq,
+                                window_size=mm_params[idx][0],
+                                num_ticks=mm_params[idx][2],
+                                wake_up_freq=mm_params[idx][3],
                                 log_orders=log_orders,
                                 random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
                                                                                           dtype='uint64')))
-               for j in range(agent_count, agent_count + num_mm_agents)])
+               for idx, j in enumerate(range(agent_count, agent_count + num_mm_agents))])
 agent_count += num_mm_agents
 agent_types.extend('POVMarketMakerAgent')
 
