@@ -85,6 +85,8 @@ class POVMarketMakerAgent(TradingAgent):
             self.state = self.initialiseState()
 
         elif can_trade and not self.subscribe:
+            self.cancelAllOrders()
+            self.delay(self.cancel_limit_delay)
             self.getCurrentSpread(self.symbol, depth=self.subscribe_num_levels)
             self.get_transacted_volume(self.symbol, lookback_period=self.wake_up_freq)
             self.initialiseState()
@@ -102,7 +104,6 @@ class POVMarketMakerAgent(TradingAgent):
         """
 
         super().receiveMessage(currentTime, msg)
-
         if self.last_mid is not None:
             mid = self.last_mid
 
@@ -119,10 +120,11 @@ class POVMarketMakerAgent(TradingAgent):
                     self.state['AWAITING_SPREAD'] = False
                 else:
                     log_print("SPREAD MISSING at time {}", currentTime)
+                    self.state['AWAITING_SPREAD'] = False  # use last mid price
 
             if self.state['AWAITING_SPREAD'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
-                self.cancelAllOrders()
-                self.delay(self.cancel_limit_delay)
+                # self.cancelAllOrders()
+                # self.delay(self.cancel_limit_delay)
                 self.placeOrders(mid)
                 self.state = self.initialiseState()
                 self.setWakeup(currentTime + self.getWakeFrequency())
@@ -140,8 +142,6 @@ class POVMarketMakerAgent(TradingAgent):
                     self.state['AWAITING_MARKET_DATA'] = False
 
             if self.state['MARKET_DATA'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
-                # self.cancelAllOrders()
-                # self.delay(self.cancel_limit_delay)
                 self.placeOrders(mid)
                 self.state = self.initialiseState()
 
