@@ -129,3 +129,28 @@ def meters_to_light_ns(x):
     x_lns = x / 299792458e-9
     x_lns = x_lns.astype(int)
     return x_lns
+
+def validate_window_size(s):
+    """ Check if s is integer or string 'adaptive'. """
+    try:
+        return int(s)
+    except ValueError:
+        if s.lower() == 'adaptive':
+            return s.lower()
+        else:
+            raise ValueError(f'String {s} must be integer or string "adaptive".')
+
+
+def sigmoid(x, beta):
+    """ Numerically stable sigmoid function.
+    Adapted from https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/"
+    """
+    if x >= 0:
+        z = np.exp(-beta*x)
+        return 1 / (1 + z)
+    else:
+        # if x is less than zero then z will be small, denom can't be
+        # zero because it's 1+z.
+        z = np.exp(beta*x)
+        return z / (1 + z)
+
