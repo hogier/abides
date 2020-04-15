@@ -25,7 +25,7 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
     """
 
     def __init__(self, id, name, type, symbol, starting_cash, pov=0.05, min_order_size=20, window_size=5, anchor=ANCHOR_MIDDLE_STR,
-                 num_ticks=20, wake_up_freq='1s', subscribe=False, subscribe_freq=10e9, subscribe_num_levels=1, cancel_limit_delay=50,
+                 num_ticks=20, tick_size=1, wake_up_freq='1s', subscribe=False, subscribe_freq=10e9, subscribe_num_levels=1, cancel_limit_delay=50,
                  skew_beta=0, log_orders=False, random_state=None):
 
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
@@ -37,7 +37,7 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
         self.window_size = self.validateWindowSize(window_size)  # Size in ticks (cents) of how wide the window around mid price is. If equal to
                                                                 # string 'adaptive' then ladder starts at best bid and ask
         self.num_ticks = num_ticks  # number of ticks on each side of window in which to place liquidity
-
+        self.tick_size = self.validateTickSize(tick_size)  # size of each tick, in cents
         self.wake_up_freq = wake_up_freq  # Frequency of agent wake up
         self.subscribe = subscribe  # Flag to determine whether to subscribe to data or use polling mechanism
         self.subscribe_freq = subscribe_freq  # Frequency in nanoseconds^-1 at which to receive market updates
@@ -58,10 +58,6 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
         self.last_mid = None  # last observed mid price
         self.last_spread = None  # last observed spread
         self.LIQUIDITY_DROPOUT_WARNING = f"Liquidity dropout for agent {self.name}."
-
-        # print(f'[Adaptive MM -- init] self.window_size: {self.window_size}')
-
-
 
     def initialiseState(self):
         """ Returns variables that keep track of whether spread and transacted volume have been observed. """
@@ -103,6 +99,15 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
                 return None
             else:
                 raise ValueError(f"Variable window_size must be of type int or string {ADAPTIVE_SPREAD_STR}.")
+
+    def validateTickSize(self, tick_size):
+        """ Checks that tick_size is of allowed value
+
+        :param tick_size:
+        :return:
+        """
+        assert isinstance(tick_size, int)
+        return tick_size
 
     def kernelStarting(self, startTime):
         super().kernelStarting(startTime)
@@ -164,7 +169,6 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
                     self.state['AWAITING_SPREAD'] = False  # use last mid price and spread
 
             if self.state['AWAITING_SPREAD'] is False and self.state['AWAITING_TRANSACTED_VOLUME'] is False:
-                # print(f'[Adaptive MM -- receiveMessage] currentTime: {currentTime}')
                 self.placeOrders(mid)
                 self.state = self.initialiseState()
                 self.setWakeup(currentTime + self.getWakeFrequency())
@@ -193,21 +197,14 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
     def updateOrderSize(self):
         """ Updates size of order to be placed. """
         qty = round(self.pov * self.transacted_volume[self.symbol])
-        # print(f'transacted_volume: {self.transacted_volume[self.symbol]}')
-
         if self.skew_beta == 0:  # ignore inventory
             self.buy_order_size = qty if qty >= self.min_order_size else self.min_order_size
             self.sell_order_size = qty if qty >= self.min_order_size else self.min_order_size
         else:
-            # print(f"qty: {qty}")
             holdings = self.getHoldings(self.symbol)
-            # print(f"holdings: {holdings}")
             proportion_sell = sigmoid(holdings, self.skew_beta)
-            # print(f"proportion_sell: {proportion_sell}")
             sell_size = ceil(proportion_sell * qty)
             buy_size = floor((1 - proportion_sell) * qty)
-            # print(f"sell_size: {sell_size}")
-            # print(f"buy_size: {buy_size}")
 
             self.buy_order_size = buy_size if buy_size >= self.min_order_size else self.min_order_size
             self.sell_order_size = sell_size if sell_size >= self.min_order_size else self.min_order_size
@@ -221,10 +218,6 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
 
         :return:
         """
-        # print(f'[Adaptive MM -- computeOrdersToPlace] mid: {mid}')
-        # print(f'[Adaptive MM -- computeOrdersToPlace] self.is_adaptive: {self.is_adaptive}')
-        # print(f'[Adaptive MM -- computeOrdersToPlace] self.last_spread: {self.last_spread}')
-        # print(f'[Adaptive MM -- computeOrdersToPlace] self.window_size: {self.window_size}')
 
         if self.anchor == ANCHOR_MIDDLE_STR:
             highest_bid = int(mid) - floor(0.5 * self.window_size)
@@ -236,11 +229,11 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
             highest_bid = int(mid - self.window_size)
             lowest_ask = int(mid + 1)
 
-        lowest_bid = highest_bid - self.num_ticks
-        highest_ask = lowest_ask + self.num_ticks
+        lowest_bid = highest_bid - ((self.num_ticks - 1) * self.tick_size)
+        highest_ask = lowest_ask + ((self.num_ticks - 1) * self.tick_size)
 
-        bids_to_place = [price for price in range(lowest_bid, highest_bid + 1)]
-        asks_to_place = [price for price in range(lowest_ask, highest_ask + 1)]
+        bids_to_place = [price for price in range(lowest_bid, highest_bid + self.tick_size, self.tick_size)]
+        asks_to_place = [price for price in range(lowest_ask, highest_ask + self.tick_size, self.tick_size)]
 
         return bids_to_place, asks_to_place
 
@@ -255,7 +248,6 @@ class AdaptiveInventoryPOVMarketMakerAgent(TradingAgent):
         bid_orders, ask_orders = self.computeOrdersToPlace(mid)
         for bid_price in bid_orders:
             log_print('{}: Placing BUY limit order of size {} @ price {}', self.name, self.buy_order_size, bid_price)
-            self.placeLimitOrder(self.symbol, self.buy_order_size, True, bid_price)
             self.placeLimitOrder(self.symbol, self.buy_order_size, True, bid_price)
 
         for ask_price in ask_orders:
