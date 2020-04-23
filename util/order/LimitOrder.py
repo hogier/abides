@@ -5,6 +5,7 @@ from util.order.Order import Order
 from Kernel import Kernel
 from agent.FinancialAgent import dollarize
 from pandas import Timestamp as pd_Timestamp
+from copy import deepcopy
 
 import sys
 
@@ -41,3 +42,30 @@ class LimitOrder(Order):
     def __repr__(self):
         if silent_mode: return ''
         return self.__str__()
+
+    def __copy__(self):
+        order = LimitOrder(self.agent_id, self.time_placed, self.symbol, self.quantity, self.is_buy_order, self.limit_price,
+                      order_id=self.order_id,
+                      tag=self.tag)
+        order.fill_price = self.fill_price
+        return order
+
+    def __deepcopy__(self, memodict={}):
+        # Deep copy instance attributes
+        agent_id = deepcopy(self.agent_id, memodict)
+        time_placed = deepcopy(self.time_placed, memodict)
+        symbol = deepcopy(self.symbol, memodict)
+        quantity = deepcopy(self.quantity, memodict)
+        is_buy_order = deepcopy(self.is_buy_order, memodict)
+        limit_price = deepcopy(self.limit_price, memodict)
+        order_id = deepcopy(self.order_id, memodict)
+        tag = deepcopy(self.tag, memodict)
+        fill_price = deepcopy(self.fill_price, memodict)
+
+        # Create new order object
+        order = LimitOrder(agent_id, time_placed, symbol, quantity, is_buy_order, limit_price,
+                           order_id=order_id, tag=tag)
+        Order._order_ids.pop()  # remove duplicate agent ID
+        order.fill_price = fill_price
+
+        return order
