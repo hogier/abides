@@ -3,6 +3,7 @@
 # Specific order types will inherit from this (like LimitOrder).
 from pandas import Timestamp as pd_Timestamp
 from typing import Optional, List
+from copy import deepcopy
 
 
 class Order:
@@ -15,6 +16,7 @@ class Order:
 
         # Time at which the order was created by the agent.
         self.time_placed: pd_Timestamp = time_placed
+        # print(f'time placed: {self.time_placed}')
 
         # Equity symbol for the order.
         self.symbol: str = symbol
@@ -50,3 +52,13 @@ class Order:
             oid = self.generateOrderId()
         return oid
 
+    def to_dict(self):
+        as_dict = deepcopy(self).__dict__
+        as_dict['time_placed'] = self.time_placed.isoformat()
+        return as_dict
+
+    def __copy__(self):
+        raise NotImplementedError
+
+    def __deepcopy__(self, memodict={}):
+        raise NotImplementedError
