@@ -147,7 +147,7 @@ class ExchangeAgent(FinancialAgent):
 
     # Log order messages only if that option is configured.  Log all other messages.
     if msg.body['msg'] in ['LIMIT_ORDER', 'MARKET_ORDER', 'CANCEL_ORDER', 'MODIFY_ORDER']:
-      if self.log_orders: self.logEvent(msg.body['msg'], js.dump(msg.body['order'], strip_privates=True))
+      if self.log_orders: self.logEvent(msg.body['msg'], js.dump(msg.body['order'], strip_privates=True, strict=True))
     else:
       self.logEvent(msg.body['msg'], msg.body['sender'])
 
@@ -408,7 +408,7 @@ class ExchangeAgent(FinancialAgent):
       # Messages that require order book modification (not simple queries) incur the additional
       # parallel processing delay as configured.
       super().sendMessage(recipientID, msg, delay = self.pipeline_delay)
-      if self.log_orders: self.logEvent(msg.body['msg'], js.dump(msg.body['order'], strip_privates=True))
+      if self.log_orders: self.logEvent(msg.body['msg'], js.dump(msg.body['order'], strip_privates=True, strict=True))
     else:
       # Other message types incur only the currently-configured computation delay for this agent.
       super().sendMessage(recipientID, msg)
