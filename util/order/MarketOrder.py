@@ -4,7 +4,6 @@ from agent.FinancialAgent import dollarize
 from pandas import Timestamp as pd_Timestamp
 from copy import deepcopy
 
-
 import sys
 
 silent_mode = False
@@ -13,8 +12,8 @@ silent_mode = False
 class MarketOrder(Order):
 
     def __init__(self, agent_id: int, time_placed: pd_Timestamp, symbol: str, quantity: int, is_buy_order: bool,
-                 order_id: int = None):
-        super().__init__(agent_id, time_placed, symbol, quantity, is_buy_order, order_id)
+                 order_id: int = None, tag: str = None):
+        super().__init__(agent_id, time_placed, symbol, quantity, is_buy_order, order_id=order_id, tag=tag)
 
     def __str__(self):
         if silent_mode: return ''
@@ -29,8 +28,9 @@ class MarketOrder(Order):
 
     def __copy__(self):
         order = MarketOrder(self.agent_id, self.time_placed, self.symbol, self.quantity, self.is_buy_order,
-                      order_id=self.order_id,
-                      tag=self.tag)
+                            order_id=self.order_id,
+                            tag=self.tag)
+        Order._order_ids.pop()  # remove duplicate agent ID
         order.fill_price = self.fill_price
         return order
 

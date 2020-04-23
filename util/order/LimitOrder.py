@@ -21,7 +21,7 @@ class LimitOrder(Order):
 
         # The limit price is the minimum price the agent will accept (for a sell order) or
         # the maximum price the agent will pay (for a buy order).
-        self.limit_price = limit_price
+        self.limit_price: int = limit_price
 
     def __str__(self):
         if silent_mode: return ''
@@ -47,6 +47,7 @@ class LimitOrder(Order):
         order = LimitOrder(self.agent_id, self.time_placed, self.symbol, self.quantity, self.is_buy_order, self.limit_price,
                       order_id=self.order_id,
                       tag=self.tag)
+        Order._order_ids.pop()  # remove duplicate agent ID
         order.fill_price = self.fill_price
         return order
 
