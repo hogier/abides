@@ -56,8 +56,8 @@ class POVExecutionAgent(TradingAgent):
 
         if currentTime > self.end_time:
             log_print(
-                '[---- {} - {} ----]: current time {} is after specified end time of POV order '
-                '{}. TRADING CONCLUDED. ', self.name, currentTime, currentTime, self.end_time)
+                f'[---- {self.name} - {currentTime} ----]: current time {currentTime} is after specified end time of POV order '
+                f'{self.end_time}. TRADING CONCLUDED. ')
             return
 
         if self.rem_quantity > 0 and \
@@ -67,27 +67,25 @@ class POVExecutionAgent(TradingAgent):
                 and currentTime > self.start_time:
             qty = round(self.pov * self.transacted_volume[self.symbol])
             self.cancelOrders()
-            self.placeMarketOrder(self.symbol, self.direction, qty)
-            log_print('[---- {} - {} ----]: TOTAL TRANSACTED VOLUME IN THE LAST '
-                      '{} = {}', self.name, currentTime, self.look_back_period, self.transacted_volume[self.symbol])
-            log_print('[---- {} - {} ----]: MARKET ORDER PLACED - {}', self.name, currentTime, qty)
+            self.placeMarketOrder(self.symbol, qty, self.direction == 'BUY')
+            log_print(f'[---- {self.name} - {currentTime} ----]: TOTAL TRANSACTED VOLUME IN THE LAST {self.look_back_period} = {self.transacted_volume[self.symbol]}')
+            log_print(f'[---- {self.name} - {currentTime} ----]: MARKET ORDER PLACED - {qty}')
 
     def handleOrderAcceptance(self, currentTime, msg):
         accepted_order = msg.body['order']
         self.accepted_orders.append(accepted_order)
         accepted_qty = sum(accepted_order.quantity for accepted_order in self.accepted_orders)
-        log_print('[---- {} - {} ----]: ACCEPTED QUANTITY : {}', self.name, currentTime, accepted_qty)
+        log_print(f'[---- {self.name} - {currentTime} ----]: ACCEPTED QUANTITY : {accepted_qty}')
 
     def handleOrderExecution(self, currentTime, msg):
         executed_order = msg.body['order']
         self.executed_orders.append(executed_order)
         executed_qty = sum(executed_order.quantity for executed_order in self.executed_orders)
         self.rem_quantity = self.quantity - executed_qty
-        log_print('[---- {} - {} ----]: LIMIT ORDER EXECUTED - {} @ {}', self.name, currentTime, executed_order.quantity, executed_order.fill_price)
-        log_print('[---- {} - {} ----]: EXECUTED QUANTITY: {}', self.name, currentTime, executed_qty)
-        log_print('[---- {} - {} ----]: REMAINING QUANTITY (NOT EXECUTED): {}', self.name, currentTime, self.rem_quantity)
-        perc_executed = round((1 - self.rem_quantity / self.quantity) * 100, 2)
-        log_print('[---- {} - {} ----]: % EXECUTED: {} \n', self.name, currentTime, perc_executed)
+        log_print(f'[---- {self.name} - {currentTime} ----]: LIMIT ORDER EXECUTED - {executed_order.quantity} @ {executed_order.fill_price}')
+        log_print(f'[---- {self.name} - {currentTime} ----]: EXECUTED QUANTITY: {executed_qty}')
+        log_print(f'[---- {self.name} - {currentTime} ----]: REMAINING QUANTITY (NOT EXECUTED): {self.rem_quantity}')
+        log_print(f'[---- {self.name} - {currentTime} ----]: % EXECUTED: {round((1 - self.rem_quantity / self.quantity) * 100, 2)} \n')
 
     def cancelOrders(self):
         for _, order in self.orders.items():
