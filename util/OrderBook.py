@@ -12,6 +12,10 @@ import pandas as pd
 from pandas.io.json import json_normalize
 from functools import reduce
 
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
+
 class OrderBook:
 
     # An OrderBook requires an owning agent object, which it will use to send messages
@@ -33,6 +37,12 @@ class OrderBook:
 
         # Last timestamp the orderbook for that symbol was updated
         self.last_update_ts = None
+
+        # Internal variable used for computing transacted volumes
+        self._transacted_volume = {
+            "unrolled_transactions": None,
+            "self.history_previous_length": 0
+        }
 
     def handleLimitOrder(self, order):
         # Matches a limit order or adds it to the order book.  Handles partial matches piecewise,
@@ -179,6 +189,15 @@ class OrderBook:
             p, q = lo[0], lo[1]
             limit_order = LimitOrder(order.agent_id, order.time_placed, order.symbol, q, order.is_buy_order, p)
             self.handleLimitOrder(limit_order)
+
+    def handleBulkOrder(self, bulk_order):
+        """ TODO send acceptance
+
+        :param bulk_order:
+        :return:
+        """
+        for order in bulk_order.child_orders:
+            self.handleLimitOrder(order)
 
     def executeOrder(self, order):
         # Finds a single best match for this order, without regard for quantity.
@@ -339,6 +358,18 @@ class OrderBook:
                         # We found the order and cancelled it, so stop looking.
                         self.last_update_ts = self.owner.currentTime
                         return
+    
+    def cancelBulkOrder(self, bulk_order):
+        """
+
+        :param bulk_order:
+        :return:
+        """
+        for order in bulk_order.child_orders:
+            self.cancelOrder(order)
+
+        self.owner.sendMessage(bulk_order.agent_id,
+                               Message({"msg": "BULK_ORDER_CANCELLED", "bulk_order": bulk_order}))
 
     def modifyOrder(self, order, new_order):
         # Modifies the quantity of an existing limit order in the order book
@@ -391,35 +422,69 @@ class OrderBook:
 
         return book
 
-    def get_transacted_volume(self, lookback_period='10min'):
-        """ Method retrieves the total transacted volume for a symbol over a lookback period finishing at the current
-            simulation time. """
+    def _get_recent_history(self):
+        """ Gets portion of self.history that has arrived since last call of self.get_transacted_volume.
 
+            Also updates self._transacted_volume[self.history_previous_length]
+        :return:
+        """
+        if self._transacted_volume["self.history_previous_length"] == 0:
+            self._transacted_volume["self.history_previous_length"] = len(self.history)
+            return self.history
+        elif self._transacted_volume["self.history_previous_length"] == len(self.history):
+            return {}
+        else:
+            idx = len(self.history) - self._transacted_volume["self.history_previous_length"] - 1
+            recent_history = self.history[0:idx]
+            self._transacted_volume["self.history_previous_length"] = len(self.history)
+            return recent_history
+
+    def _update_unrolled_transactions(self, recent_history):
+        """ Updates self._transacted_volume["unrolled_transactions"] with data from recent_history
+
+        :return:
+        """
+        new_unrolled_txn = self._unrolled_transactions_from_order_history(recent_history)
+        old_unrolled_txn = self._transacted_volume["unrolled_transactions"]
+        total_unrolled_txn = pd.concat([old_unrolled_txn, new_unrolled_txn], ignore_index=True)
+        self._transacted_volume["unrolled_transactions"] = total_unrolled_txn
+
+    def _unrolled_transactions_from_order_history(self, history):
+        """ Returns a DataFrame with columns ['execution_time', 'quantity'] from a dictionary with same format as
+            self.history, describing executed transactions.
+        """
+        # Load history into DataFrame
         unrolled_history = []
-        for elem in self.history:
+        for elem in history:
             for _, val in elem.items():
                 unrolled_history.append(val)
 
-        unrolled_history_df = json_normalize(unrolled_history)
+        unrolled_history_df = pd.DataFrame(unrolled_history, columns=[
+            'entry_time', 'quantity', 'is_buy_order', 'limit_price', 'transactions', 'modifications', 'cancellations'
+        ])
 
         if unrolled_history_df.empty:
-            return 0
+            return pd.DataFrame(columns=['execution_time', 'quantity'])
 
-        executed_transactions = unrolled_history_df[
-            unrolled_history_df['transactions'].map(lambda d: len(d)) > 0]  # remove cells that are an empty list
+        executed_transactions = unrolled_history_df[unrolled_history_df['transactions'].map(lambda d: len(d)) > 0]  # remove cells that are an empty list
 
         #  Reshape into DataFrame with columns ['execution_time', 'quantity']
-        unrolled_transactions = executed_transactions['transactions'].apply(pd.Series)
-        unrolled_transactions = reduce(lambda col1, col2: pd.concat([col1, col2], axis=0),
-                                       [unrolled_transactions[col] for col in unrolled_transactions.columns])
-        unrolled_transactions = unrolled_transactions.dropna()
-        unrolled_transactions = unrolled_transactions.apply(pd.Series)
-        unrolled_transactions = unrolled_transactions.rename(columns={
-            0: 'execution_time',
-            1: 'quantity'
-        })
+        transaction_list = [element for list_ in executed_transactions['transactions'].values for element in list_]
+        unrolled_transactions = pd.DataFrame(transaction_list, columns=['execution_time', 'quantity'])
         unrolled_transactions = unrolled_transactions.sort_values(by=['execution_time'])
         unrolled_transactions = unrolled_transactions.drop_duplicates(keep='last')
+
+        return unrolled_transactions
+
+    def get_transacted_volume(self, lookback_period='10min'):
+        """ Method retrieves the total transacted volume for a symbol over a lookback period finishing at the current
+            simulation time.
+        """
+
+        # Update unrolled transactions DataFrame
+        recent_history = self._get_recent_history()
+        self._update_unrolled_transactions(recent_history)
+        unrolled_transactions = self._transacted_volume["unrolled_transactions"]
 
         #  Get transacted volume in time window
         lookback_pd = pd.to_timedelta(lookback_period)
