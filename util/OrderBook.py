@@ -190,15 +190,6 @@ class OrderBook:
             limit_order = LimitOrder(order.agent_id, order.time_placed, order.symbol, q, order.is_buy_order, p)
             self.handleLimitOrder(limit_order)
 
-    def handleBulkOrder(self, bulk_order):
-        """ TODO send acceptance
-
-        :param bulk_order:
-        :return:
-        """
-        for order in bulk_order.child_orders:
-            self.handleLimitOrder(order)
-
     def executeOrder(self, order):
         # Finds a single best match for this order, without regard for quantity.
         # Returns the matched order or None if no match found.  DOES remove,
@@ -358,18 +349,6 @@ class OrderBook:
                         # We found the order and cancelled it, so stop looking.
                         self.last_update_ts = self.owner.currentTime
                         return
-    
-    def cancelBulkOrder(self, bulk_order):
-        """
-
-        :param bulk_order:
-        :return:
-        """
-        for order in bulk_order.child_orders:
-            self.cancelOrder(order)
-
-        self.owner.sendMessage(bulk_order.agent_id,
-                               Message({"msg": "BULK_ORDER_CANCELLED", "bulk_order": bulk_order}))
 
     def modifyOrder(self, order, new_order):
         # Modifies the quantity of an existing limit order in the order book

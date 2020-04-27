@@ -21,7 +21,7 @@ from util.oracle.SparseMeanRevertingOracle import SparseMeanRevertingOracle
 from agent.ExchangeAgent import ExchangeAgent
 from agent.NoiseAgent import NoiseAgent
 from agent.ValueAgent import ValueAgent
-from agent.market_makers.AdaptiveMarketMakerBulkAgent import AdaptiveMarketMakerAgent
+from agent.market_makers.AdaptiveMarketMakerAgent import AdaptiveMarketMakerAgent
 from agent.examples.MomentumAgent import MomentumAgent
 from agent.execution.POVExecutionAgent import POVExecutionAgent
 from model.LatencyModel import LatencyModel
