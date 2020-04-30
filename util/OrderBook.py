@@ -11,10 +11,13 @@ from copy import deepcopy
 import pandas as pd
 from pandas.io.json import json_normalize
 from functools import reduce
+from scipy.sparse import dok_matrix
+from tqdm import tqdm
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
+
 
 class OrderBook:
 
@@ -144,8 +147,8 @@ class OrderBook:
             # for later visualization.  (This is slow.)
             if self.owner.book_freq is not None:
                 row = {'QuoteTime': self.owner.currentTime}
-                for quote in self.quotes_seen:
-                    row[quote] = 0
+                # for quote in self.quotes_seen:
+                #     row[quote] = 0
                 for quote, volume in self.getInsideBids():
                     row[quote] = -volume
                     self.quotes_seen.add(quote)
@@ -495,6 +498,42 @@ class OrderBook:
 
     def isSameOrder(self, order, new_order):
         return order.order_id == new_order.order_id
+
+    def book_log_to_df(self):
+        """ Returns a pandas DataFrame constructed from the order book log, to be consumed by
+            agent.ExchangeAgent.logOrderbookSnapshots.
+
+            The first column of the DataFrame is `QuoteTime`. The succeeding columns are prices quoted during the
+            simulation (as taken from self.quotes_seen).
+
+            Each row is a snapshot at a specific time instance. If there is volume at a certain price level (negative
+            for bids, positive for asks) this volume is written in the column corresponding to the price level. If there
+            is no volume at a given price level, the corresponding column has a `0`.
+
+            The data is stored in a sparse format, such that a value of `0` takes up no space.
+
+        :return:
+        """
+        quotes = sorted(list(self.quotes_seen))
+        log_len = len(self.book_log)
+        quote_idx_dict = {quote: idx for idx, quote in enumerate(quotes)}
+        quotes_times = []
+
+
+        # Construct sparse matrix, where rows are timesteps, columns are quotes and elements are volume.
+        S = dok_matrix((log_len, len(quotes)), dtype=int)  # Dictionary Of Keys based sparse matrix.
+
+        for i, row in enumerate(tqdm(self.book_log, desc="Processing orderbook log")):
+            quotes_times.append(row['QuoteTime'])
+            for quote, vol in row.items():
+                if quote == "QuoteTime":
+                    continue
+                S[i, quote_idx_dict[quote]] = vol
+
+        S = S.tocsc()  # Convert this matrix to Compressed Sparse Column format for pandas to consume.
+        df = pd.DataFrame.sparse.from_spmatrix(S, columns=quotes)
+        df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
+        return df
 
     # Print a nicely-formatted view of the current order book.
     def prettyPrint(self, silent=False):

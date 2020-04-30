@@ -339,15 +339,12 @@ class ExchangeAgent(FinancialAgent):
     if book.book_log:
 
       print("Logging order book to file...")
-      dfLog = pd.DataFrame(book.book_log)
+      dfLog = book.book_log_to_df()
       dfLog.set_index('QuoteTime', inplace=True)
       dfLog = dfLog[~dfLog.index.duplicated(keep='last')]
       dfLog.sort_index(inplace=True)
 
       if str(self.book_freq).isdigit() and int(self.book_freq) == 0:  # Save all possible information
-        # With all order snapshots saved DataFrame is very sparse
-        dfLog = pd.SparseDataFrame(dfLog)
-
         # Get the full range of quotes at the finest possible resolution.
         quotes = get_quote_range_iterator(dfLog.columns.unique())
 
