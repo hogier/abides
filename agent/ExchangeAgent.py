@@ -61,7 +61,6 @@ class ExchangeAgent(FinancialAgent):
 
     # Store orderbook in wide format? ONLY WORKS with book_freq == 0
     self.wide_book = wide_book
-    self.wide_book_warning()
 
     # The subscription dict is a dictionary with the key = agent ID,
     # value = dict (key = symbol, value = list [levels (no of levels to recieve updates for),
@@ -367,16 +366,18 @@ class ExchangeAgent(FinancialAgent):
         time_idx = pd.date_range(self.mkt_open, self.mkt_close, freq=self.book_freq, closed='right')
         dfLog = dfLog.reindex(time_idx, method='ffill')
         dfLog.sort_index(inplace=True)
-        dfLog = dfLog.stack()
-        dfLog.sort_index(inplace=True)
 
-        # Get the full range of quotes at the finest possible resolution.
-        quotes = get_quote_range_iterator(dfLog.index.get_level_values(1).unique())
+        if not self.wide_book:
+          dfLog = dfLog.stack()
+          dfLog.sort_index(inplace=True)
 
-        # Restructure the log to have multi-level rows of all possible pairs of time and quote
-        # with volume as the only column.
-        filledIndex = pd.MultiIndex.from_product([time_idx, quotes], names=['time', 'quote'])
-        dfLog = dfLog.reindex(filledIndex)
+          # Get the full range of quotes at the finest possible resolution.
+          quotes = get_quote_range_iterator(dfLog.index.get_level_values(1).unique())
+
+          # Restructure the log to have multi-level rows of all possible pairs of time and quote
+          # with volume as the only column.
+          filledIndex = pd.MultiIndex.from_product([time_idx, quotes], names=['time', 'quote'])
+          dfLog = dfLog.reindex(filledIndex)
 
         filename = f'ORDERBOOK_{symbol}_FREQ_{self.book_freq}'
 
@@ -415,9 +416,3 @@ class ExchangeAgent(FinancialAgent):
 
   def getMarketClose(self):
     return self.__mkt_close
-
-  def wide_book_warning(self):
-    """ Prints warning message about wide orderbook format usage. """
-    if self.wide_book and (self.book_freq != 0):
-      log_print(f"WARNING: (wide_book == True) and (book_freq != 0). Orderbook will be logged in column MultiIndex "
-                "format at frequency {self.book_freq}.")
