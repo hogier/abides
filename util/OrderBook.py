@@ -14,10 +14,6 @@ from functools import reduce
 from scipy.sparse import dok_matrix
 from tqdm import tqdm
 
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 1000)
-
 
 class OrderBook:
 
@@ -147,14 +143,12 @@ class OrderBook:
             # for later visualization.  (This is slow.)
             if self.owner.book_freq is not None:
                 row = {'QuoteTime': self.owner.currentTime}
-                # for quote in self.quotes_seen:
-                #     row[quote] = 0
                 for quote, volume in self.getInsideBids():
                     row[quote] = -volume
                     self.quotes_seen.add(quote)
                 for quote, volume in self.getInsideAsks():
                     if quote in row:
-                        if row[quote] != 0:
+                        if row[quote] is not None:
                             print(
                                 "WARNING: THIS IS A REAL PROBLEM: an order book contains bids and asks at the same quote price!")
                     row[quote] = volume
