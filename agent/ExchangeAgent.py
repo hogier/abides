@@ -384,8 +384,8 @@ class ExchangeAgent(FinancialAgent):
       # Final cleanup
       if not self.wide_book:
         dfLog.rename('Volume')
-        df = pd.SparseDataFrame(index=dfLog.index)
-        df['Volume'] = dfLog
+        df = pd.DataFrame({"Volumne" : dfLog})
+        df.index = dfLog.index
       else:
         df = dfLog
         df = df.reindex(sorted(df.columns), axis=1)
@@ -412,7 +412,10 @@ class ExchangeAgent(FinancialAgent):
 
   # Simple accessor methods for the market open and close times.
   def getMarketOpen(self):
-    return self.__mkt_open
+    return self.mkt_open
 
   def getMarketClose(self):
-    return self.__mkt_close
+    return self.mkt_close
+
+
+

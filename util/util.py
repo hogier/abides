@@ -2,8 +2,12 @@ import numpy as np
 import pandas as pd
 from contextlib import contextmanager
 import warnings
-from scipy.spatial.distance import pdist
+from scipy.spatial.distance import pdist, squareform
+from enum import Enum
 
+class SymbolType(Enum):
+    Stock=1,
+    ETF=2
 
 # General purpose utility functions for the simulator, attached to no particular class.
 # Available to any agent or other module/utility.  Should not require references to
@@ -118,7 +122,7 @@ def generate_uniform_random_pairwise_dist_on_line(left, right, num_points, rando
     x_coords = random_state.uniform(low=left, high=right, size=num_points)
     x_coords = x_coords.reshape((x_coords.size, 1))
     out = pdist(x_coords, 'euclidean')
-    return out
+    return squareform(out)
 
 
 def meters_to_light_ns(x):

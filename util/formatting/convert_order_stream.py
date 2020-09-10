@@ -66,6 +66,7 @@ def convert_stream_to_format(stream_df, fmt="LOBSTER"):
             event_df["Type"] = lobster_code
             event_dfs.append(event_df)
 
+    print(event_dfs)
     lobster_df = pd.concat(event_dfs)
 
     if fmt == "plot-scripts":

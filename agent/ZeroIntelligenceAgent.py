@@ -11,7 +11,8 @@ class ZeroIntelligenceAgent(TradingAgent):
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, sigma_n=1000,
                  r_bar=100000, kappa=0.05, sigma_s=100000, q_max=10,
                  sigma_pv=5000000, R_min=0, R_max=250, eta=1.0,
-                 lambda_a=0.005, log_orders=False, random_state=None):
+                 lambda_a=0.005,
+                 log_orders=False, random_state=None):
 
         # Base class init.
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
@@ -65,12 +66,14 @@ class ZeroIntelligenceAgent(TradingAgent):
         # Print end of day valuation.
         H = int(round(self.getHoldings(self.symbol), -2) / 100)
         # May request real fundamental value from oracle as part of final cleanup/stats.
-        if self.symbol != 'ETF':
-            rT = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=0, random_state=self.random_state)
-        else:
-            portfolio_rT, rT = self.oracle.observePortfolioPrice(self.symbol, self.portfolio, self.currentTime,
-                                                                 sigma_n=0,
-                                                                 random_state=self.random_state)
+        #-------------------------------------------------
+        #if self.symbol != 'ETF':
+        rT = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=0, random_state=self.random_state)
+        #else:
+        #    portfolio_rT, rT = self.oracle.observePortfolioPrice(self.symbol, self.portfolio, self.currentTime,
+        #                                                         sigma_n=0,
+        #                                                         random_state=self.random_state)
+        #-------------------------------------------------
 
         # Start with surplus as private valuation of shares held.
         if H > 0:

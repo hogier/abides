@@ -16,7 +16,7 @@
 import datetime as dt
 import numpy as np
 import pandas as pd
-import os, random, sys
+from util import util
 
 from math import sqrt
 from util.util import log_print
@@ -36,11 +36,33 @@ class MeanRevertingOracle:
 
     then = dt.datetime.now()
 
-    for symbol in symbols:
+    # divide symbols upon their type
+    stock_symbols = []
+    etf_symbols = []
+    for s in symbols:
+      if symbols[s]["type"] == util.SymbolType.Stock:
+        stock_symbols += [s]
+      elif symbols[s]["type"] == util.SymbolType.ETF:
+        etf_symbols += [s]
+      else:
+        raise NameError('Type  ' + str(symbols[s]["type"]) + " is unkwonw")
+
+    for symbol in stock_symbols:
       s = symbols[symbol]
+      r_bar, kappa, sigma_s = s["r_bar"], s["kappa"], s["sigma_s"]
       log_print ("MeanRevertingOracle computing fundamental value series for {}", symbol)
-      self.r[symbol] = self.generate_fundamental_value_series(symbol=symbol, **s)
-    
+      self.r[symbol] = self.generate_fundamental_value_series(symbol, r_bar, kappa, sigma_s )
+
+    for etf_symbol in etf_symbols:
+      underline_symbols = symbols[etf_symbol]["portfolio"]
+      out_fvalue = None
+      for un_sym in underline_symbols:
+        out_fvalue = np.asarray(self.r[un_sym]) if out_fvalue is None else out_fvalue + self.r[un_sym]
+      self.r[etf_symbol] = out_fvalue
+
+    #for s in symbols:
+    #  print("Fondamnetal ", s, self.r[s])
+
     now = dt.datetime.now()
 
     log_print ("MeanRevertingOracle initialized for symbols {}", symbols)
