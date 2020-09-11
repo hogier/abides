@@ -31,7 +31,7 @@ parser.add_argument('-g', '--greed', type=float, default=0.25,
                     help='Impact agent greed')
 parser.add_argument('-i', '--impact', action='store_false',
                     help='Do not actually fire an impact trade.', default=True)
-parser.add_argument('-l', '--log_dir', default=None,
+parser.add_argument('-l', '--log_dir', default="twosym",
                     help='Log directory name (default: unix timestamp at program start)')
 parser.add_argument('-n', '--obs_noise', type=float, default=1000000,
                     help='Observation noise variance for zero intelligence agents (sigma^2_n)')
@@ -142,22 +142,22 @@ defaultComputationDelay = 0  # no delay for this config
 # only IBM.  This config uses generated data, so the symbol doesn't really matter.
 
 # If shock variance must differ for each traded symbol, it can be overridden here.
-symbols = {'SYM1': {'r_bar': 100000, 'kappa': 1.67e-16, 'sigma_s': sigma_s, 'type': util.SymbolType.Stock,
+symbols = {'SYM1': {'r_bar': 100000, 'kappa': 1.67e-13, 'sigma_s': 0, 'type': util.SymbolType.Stock,
                     'fund_vol': 1e-4,
                     'megashock_lambda_a': 2.77778e-18,
                     'megashock_mean': 1e3,
                     'megashock_var': 5e4,
                     'random_state': np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64'))},
-           'SYM2': {'r_bar': 150000, 'kappa': 1.67e-16, 'sigma_s': sigma_s, 'type': util.SymbolType.Stock,
+           'SYM2': {'r_bar': 100000, 'kappa': 1.67e-13, 'sigma_s': 0, 'type': util.SymbolType.Stock,
                     'fund_vol': 1e-4,
                     'megashock_lambda_a': 2.77778e-18,
                     'megashock_mean': 1e3,
                     'megashock_var': 5e4,
                     'random_state': np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64'))},
-           'ETF': {'r_bar': 250000, 'kappa': 2*1.67e-16, 'sigma_s': np.sqrt(2) * sigma_s, 'portfolio': ['SYM1', 'SYM2'],
+           'ETF': {'r_bar': 100000, 'kappa': 2*1.67e-13, 'sigma_s': 0, 'portfolio': ['SYM1', 'SYM2'],
                     'fund_vol': 1e-4,
                     'megashock_lambda_a': 2.77778e-13,
-                    'megashock_mean': 1e3,
+                    'megashock_mean': 0,
                     'megashock_var': 5e4,
                     'random_state': np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')),
                    'type': util.SymbolType.ETF}
@@ -184,7 +184,7 @@ mkt_open = midnight + pd.to_timedelta('09:30:00')
 
 # And close it at 9:30:00.000001 (i.e. 1,000 nanoseconds or "time steps")
 # mkt_close = midnight + pd.to_timedelta('09:30:00.001')
-mkt_close = midnight + pd.to_timedelta('10:00:00')
+mkt_close = midnight + pd.to_timedelta('15:30:00')
 
 # Configure an appropriate oracle for all traded stocks.
 # All agents requiring the same type of Oracle will use the same oracle instance.
@@ -246,8 +246,8 @@ s3 = symbols_full[symbol3]
 # hbl = []
 
 # 100 agents
-# zi = [ (15, 0, 250, 1), (15, 0, 500, 1), (14, 0, 1000, 0.8), (14, 0, 1000, 1), (14, 0, 2000, 0.8), (14, 250, 500, 0.8), (14, 250, 500, 1) ]
-# hbl = []
+zi = [ (15, 0, 250, 1), (15, 0, 500, 1), (14, 0, 1000, 0.8), (14, 0, 1000, 1), (14, 0, 2000, 0.8), (14, 250, 500, 0.8), (14, 250, 500, 1) ]
+hbl = []
 
 # 1000 agents
 # zi = [ (143, 0, 250, 1), (143, 0, 500, 1), (143, 0, 1000, 0.8), (143, 0, 1000, 1), (143, 0, 2000, 0.8), (143, 250, 500, 0.8), (142, 250, 500, 1) ]
@@ -284,9 +284,9 @@ s3 = symbols_full[symbol3]
 # hbl = [ (4, 250, 500, 1, 2), (4, 250, 500, 1, 3), (4, 250, 500, 1, 5), (4, 250, 500, 1, 8) ]
 
 # 1000 agents
-zi = [(100, 0, 250, 1), (100, 0, 500, 1), (100, 0, 10000, 0.8), (100, 0, 10000, 1), (100, 0, 2000, 0.8),
-      (100, 250, 500, 0.8), (100, 250, 500, 1)]
-hbl = [(75, 250, 500, 1, 2), (75, 250, 500, 1, 3), (75, 250, 500, 1, 5), (75, 250, 500, 1, 8)]
+#zi = [(100, 0, 250, 1), (100, 0, 500, 1), (100, 0, 10000, 0.8), (100, 0, 10000, 1), (100, 0, 2000, 0.8),
+#      (100, 250, 500, 0.8), (100, 250, 500, 1)]
+#hbl = [(75, 250, 500, 1, 2), (75, 250, 500, 1, 3), (75, 250, 500, 1, 5), (75, 250, 500, 1, 8)]
 
 
 # ZI strategy split.
@@ -329,6 +329,7 @@ for i, x in enumerate(zi):
                    range(agent_count, agent_count + x[0])])
     agent_types.extend(["ZeroIntelligenceAgent {}".format(strat_name) for j in range(x[0])])
     agent_count += x[0]
+
 
 # HBL strategy split.
 for i, x in enumerate(hbl):
@@ -377,7 +378,7 @@ for i, x in enumerate(hbl):
 # Trend followers agent
 i = agent_count
 lookback = 10
-num_tf = 20
+num_tf = 0
 for j in range(num_tf):
     agents.append(
         MomentumAgent(i, "Momentum Agent {}".format(i), type=None, max_size=100, min_size=1,
@@ -403,8 +404,8 @@ agent_count += num_tf
 # ETF arbitrage agent
 
 i = agent_count
-gamma = 0
-num_arb = 25
+gamma = 250
+num_arb = 50
 for j in range(num_arb):
     agents.append(EtfArbAgent(i, "Etf Arb Agent {}".format(i), "EtfArbAgent", portfolio=['SYM1', 'SYM2'], gamma=gamma,
                               starting_cash=starting_cash, lambda_a=1e-12, log_orders=log_orders,
@@ -417,7 +418,7 @@ agent_count += num_arb
 # i = agent_count
 # gamma = 100
 # num_mm = 10
-mm = [(5, 0), (5, 50), (5, 100), (5, 200), (5, 300)]
+mm = [(50, 250)] # (5, 50), (5, 100), (5, 200), (5, 300)]
 # for j in range(num_mm):
 # agents.append(EtfMarketMakerAgent(i, "Etf MM Agent {}".format(i), "EtfMarketMakerAgent", portfolio = ['IBM','GOOG'], gamma = gamma, starting_cash = starting_cash, lambda_a=1e-12, log_orders=log_orders, random_state = np.random.RandomState(seed=np.random.randint(low=0,high=2**32))))
 # agent_types.append("EtfMarketMakerAgent {}".format(i))
@@ -438,22 +439,18 @@ for i, x in enumerate(mm):
 # Impact agent.
 
 # 200 time steps in...
-impact_time = midnight + pd.to_timedelta('13:00:00.0000002')
 
-i = agent_count
-agents.append(ImpactAgent(i, "Impact Agent1 {}".format(i), "ImpactAgent1", symbol="SYM1", starting_cash=starting_cash,
-                          impact=impact, impact_time=impact_time, greed=greed,
-                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32))))
-agent_types.append("ImpactAgent 1 {}".format(i))
-agent_count += 1
+impacts = ['13:00:00', '13:00:06', '13:00:12', '13:00:18', '13:00:24', '13:00:30', '13:00:36', '13:00:42', '13:00:48','13:00:54', '13:01:00']
+for itrades in impacts:
+    impact_time = midnight + pd.to_timedelta(itrades)
 
-impact_time = midnight + pd.to_timedelta('13:00:00.0000005')
-i = agent_count
-agents.append(ImpactAgent(i, "Impact Agent2 {}".format(i), "ImpactAgent2", symbol="SYM1", starting_cash=starting_cash,
-                          impact=impact, impact_time=impact_time, greed=greed,
-                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32))))
-agent_types.append("ImpactAgent 2 {}".format(i))
-agent_count += 1
+    i = agent_count
+    agents.append(ImpactAgent(i, "Impact Agent1 {}".format(i), "ImpactAgent1", symbol="SYM1", starting_cash=starting_cash,
+                              impact=impact, impact_time=impact_time, greed=greed,
+                              random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32))))
+    agent_types.append("ImpactAgent 1 {}".format(i))
+    agent_count += 1
+
 
 # i = agent_count
 # agents.append(ImpactAgent(i, "Impact Agent3 {}".format(i), "ImpactAgent3", symbol = "ETF", starting_cash = starting_cash, greed = greed, impact = impact, impact_time = impact_time, random_state = np.random.RandomState(seed=np.random.randint(low=0,high=2**32))))

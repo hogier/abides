@@ -146,9 +146,9 @@ class EtfArbAgent(TradingAgent):
       #print('no move because index or ETF was missing part of NBBO')
       pass
     elif (index_mid - etf_mid) > self.gamma:
-      self.placeLimitOrder('ETF', 1, True, etf_p['ask'])
+      self.placeLimitOrder('ETF', 100, True, etf_p['ask'])  # BUY
     elif (etf_mid - index_mid) > self.gamma:
-      self.placeLimitOrder('ETF', 1, False, etf_p['bid'])
+      self.placeLimitOrder('ETF', 100, False, etf_p['bid'])  # SELL
     else:
       pass
       #print('no move because abs(index - ETF mid) < gamma')   

@@ -71,7 +71,7 @@ class EtfMarketMakerAgent(EtfArbAgent):
     # do that before we cease activity for the day.  Don't do any other behavior
     # after market close.
     elif self.mkt_closed and not self.prime_closed:
-      if self.switched_mkt and currentTime >= self.prime_open:
+      if self.switched_mkt and self.currentTime >= self.prime_open:
         self.getEtfNav()
         self.state = 'AWAITING_NAV'
       elif not self.switched_mkt:
@@ -130,13 +130,13 @@ class EtfMarketMakerAgent(EtfArbAgent):
     elif (index_mid - etf_mid) > self.gamma:
       #print('buy ETF')
       for i,s in enumerate(self.portfolio):
-        self.placeLimitOrder(s, 1, False, index_p[s]['bid'])
-      self.placeLimitOrder('ETF', 1, True, etf_p['ask'])
+        self.placeLimitOrder(s, 100, False, index_p[s]['bid'])  # vende sottostante e compra etf
+      self.placeLimitOrder('ETF', 100, True, etf_p['ask'])
     elif (etf_mid - index_mid) > self.gamma:
       #print('sell ETF')
-      for i,s in enumerate(self.portfolio):
-        self.placeLimitOrder(s, 1, True, index_p[s]['ask'])
-      self.placeLimitOrder('ETF', 1, False, etf_p['bid'])
+      for i,s in enumerate(self.portfolio):  #  {sym1, sym2}
+        self.placeLimitOrder(s, 100, True, index_p[s]['ask'])  # compra sottostante e vende etf
+      self.placeLimitOrder('ETF', 100, False, etf_p['bid'])
     else:
       pass
       #print('no move because abs(index - ETF mid) < gamma') 

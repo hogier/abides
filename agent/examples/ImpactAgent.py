@@ -98,10 +98,10 @@ class ImpactAgent(TradingAgent):
         bid_liq, ask_liq = self.getKnownLiquidity(self.symbol, within=self.within)
 
         # Buy order.
-        direction, shares, price = True, int(round(ask_liq * self.greed)), ask
+        #direction, shares, price = True, int(round(ask_liq * self.greed)), ask
 
         # Sell order.  This should be a parameter, but isn't yet.
-        #direction, shares, price = False, int(round(bid_liq * self.greed)), bid
+        direction, shares, price = False, int(round(bid_liq * self.greed)), bid
 
         # Compute the limit price we must offer to ensure our order executes immediately.
         # This is essentially a workaround for the lack of true market orders in our
@@ -111,7 +111,7 @@ class ImpactAgent(TradingAgent):
         # Actually place the order only if self.impact is true.
         if self.impact: 
           print ("Impact agent firing: {} {} @ {}".format('BUY' if direction else 'SELL', shares, self.dollarize(price)))
-          self.placeLimitOrder (self.symbol, shares, direction, price)
+          self.placeLimitOrder(self.symbol, 600, direction, price)
         else:
           print ("Impact agent would fire: {} {} @ {} (but self.impact = False)".format('BUY' if direction else 'SELL', shares, self.dollarize(price)))
 
@@ -120,8 +120,7 @@ class ImpactAgent(TradingAgent):
 
 
   # Internal state and logic specific to this agent.
-
-  def placeLimitOrder (self, symbol, quantity, is_buy_order, limit_price):
+  def placeLimitOrder(self, symbol, quantity, is_buy_order, limit_price):
     super().placeLimitOrder(symbol, quantity, is_buy_order, limit_price, ignore_risk = True)
 
   # Computes required limit price to immediately execute a trade for the specified quantity
