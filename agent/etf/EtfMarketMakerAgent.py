@@ -71,7 +71,7 @@ class EtfMarketMakerAgent(EtfArbAgent):
     # do that before we cease activity for the day.  Don't do any other behavior
     # after market close.
     elif self.mkt_closed and not self.prime_closed:
-      if self.switched_mkt and self.currentTime >= self.prime_open:
+      if self.switched_mkt and currentTime >= self.prime_open:
         self.getEtfNav()
         self.state = 'AWAITING_NAV'
       elif not self.switched_mkt:

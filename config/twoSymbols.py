@@ -9,6 +9,7 @@ from agent.etf.EtfArbAgent import EtfArbAgent
 from agent.etf.EtfMarketMakerAgent import EtfMarketMakerAgent
 from util.order import LimitOrder
 from util.oracle.MeanRevertingOracle import MeanRevertingOracle
+from util.oracle.SparseMeanRevertingOracle import SparseMeanRevertingOracle
 from util import util
 
 import numpy as np
@@ -141,9 +142,24 @@ defaultComputationDelay = 0  # no delay for this config
 # only IBM.  This config uses generated data, so the symbol doesn't really matter.
 
 # If shock variance must differ for each traded symbol, it can be overridden here.
-symbols = {'SYM1': {'r_bar': 100000, 'kappa': 0.05, 'sigma_s': sigma_s, 'type': util.SymbolType.Stock},
-           'SYM2': {'r_bar': 150000, 'kappa': 0.05, 'sigma_s': sigma_s, 'type': util.SymbolType.Stock},
-           'ETF': {'r_bar': 250000, 'kappa': 0.10, 'sigma_s': np.sqrt(2) * sigma_s, 'portfolio': ['SYM1', 'SYM2'],
+symbols = {'SYM1': {'r_bar': 100000, 'kappa': 1.67e-16, 'sigma_s': sigma_s, 'type': util.SymbolType.Stock,
+                    'fund_vol': 1e-4,
+                    'megashock_lambda_a': 2.77778e-18,
+                    'megashock_mean': 1e3,
+                    'megashock_var': 5e4,
+                    'random_state': np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64'))},
+           'SYM2': {'r_bar': 150000, 'kappa': 1.67e-16, 'sigma_s': sigma_s, 'type': util.SymbolType.Stock,
+                    'fund_vol': 1e-4,
+                    'megashock_lambda_a': 2.77778e-18,
+                    'megashock_mean': 1e3,
+                    'megashock_var': 5e4,
+                    'random_state': np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64'))},
+           'ETF': {'r_bar': 250000, 'kappa': 2*1.67e-16, 'sigma_s': np.sqrt(2) * sigma_s, 'portfolio': ['SYM1', 'SYM2'],
+                    'fund_vol': 1e-4,
+                    'megashock_lambda_a': 2.77778e-13,
+                    'megashock_mean': 1e3,
+                    'megashock_var': 5e4,
+                    'random_state': np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')),
                    'type': util.SymbolType.ETF}
            }
 # symbols = { 'IBM' : { 'r_bar' : 100000, 'kappa' : 0.05, 'sigma_s' : sigma_s }, 'GOOG' : { 'r_bar' : 150000, 'kappa' : 0.05, 'sigma_s' : sigma_s } }
@@ -168,17 +184,17 @@ mkt_open = midnight + pd.to_timedelta('09:30:00')
 
 # And close it at 9:30:00.000001 (i.e. 1,000 nanoseconds or "time steps")
 # mkt_close = midnight + pd.to_timedelta('09:30:00.001')
-mkt_close = midnight + pd.to_timedelta('9:30:00.000001')
+mkt_close = midnight + pd.to_timedelta('10:00:00')
 
 # Configure an appropriate oracle for all traded stocks.
 # All agents requiring the same type of Oracle will use the same oracle instance.
-oracle = MeanRevertingOracle(mkt_open, mkt_close, symbols)
+oracle = SparseMeanRevertingOracle(mkt_open, mkt_close, symbols)
 
 # Create the exchange.
 num_exchanges = 1
 agents.extend([ExchangeAgent(j, "Exchange Agent {}".format(j), "ExchangeAgent", mkt_open, mkt_close,
-                             [s for s in symbols_full], log_orders=log_orders, book_freq=book_freq, pipeline_delay=0,
-                             computation_delay=0, stream_history=10,
+                             [s for s in symbols_full], log_orders=log_orders, pipeline_delay=0,
+                             computation_delay=0, stream_history=10, book_freq=book_freq,
                              random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))
                for j in range(agent_count, agent_count + num_exchanges)])
 agent_types.extend(["ExchangeAgent" for j in range(num_exchanges)])
@@ -272,16 +288,17 @@ zi = [(100, 0, 250, 1), (100, 0, 500, 1), (100, 0, 10000, 0.8), (100, 0, 10000, 
       (100, 250, 500, 0.8), (100, 250, 500, 1)]
 hbl = [(75, 250, 500, 1, 2), (75, 250, 500, 1, 3), (75, 250, 500, 1, 5), (75, 250, 500, 1, 8)]
 
+
 # ZI strategy split.
 for i, x in enumerate(zi):
     strat_name = "Type {} [{} <= R <= {}, eta={}]".format(i + 1, x[1], x[2], x[3])
     agents.extend([ZeroIntelligenceAgent(j, "ZI Agent {} {}".format(j, strat_name),
                                          "ZeroIntelligenceAgent {}".format(strat_name),
                                          random_state=np.random.RandomState(
-                                             seed=np.random.randint(low=0, high=2 ** 32)), log_orders=log_orders,
+                                         seed=np.random.randint(low=0, high=2 ** 32)), log_orders=log_orders,
                                          symbol=symbol1, starting_cash=starting_cash, sigma_n=sigma_n,
                                          r_bar=s1['r_bar'], q_max=10, sigma_pv=5000000, R_min=x[1], R_max=x[2],
-                                         eta=x[3], lambda_a=0.005) for j in range(agent_count, agent_count + x[0])])
+                                         eta=x[3], lambda_a=1e-12) for j in range(agent_count, agent_count + x[0])])
     agent_types.extend(["ZeroIntelligenceAgent {}".format(strat_name) for j in range(x[0])])
     agent_count += x[0]
 
@@ -293,7 +310,7 @@ for i, x in enumerate(zi):
                                              seed=np.random.randint(low=0, high=2 ** 32)), log_orders=log_orders,
                                          symbol=symbol2, starting_cash=starting_cash, sigma_n=sigma_n,
                                          r_bar=s2['r_bar'], q_max=10, sigma_pv=5000000, R_min=x[1], R_max=x[2],
-                                         eta=x[3], lambda_a=0.005) for j in range(agent_count, agent_count + x[0])])
+                                         eta=x[3], lambda_a=1e-12) for j in range(agent_count, agent_count + x[0])])
     agent_types.extend(["ZeroIntelligenceAgent {}".format(strat_name) for j in range(x[0])])
     agent_count += x[0]
 
@@ -308,7 +325,7 @@ for i, x in enumerate(zi):
                                              seed=np.random.randint(low=0, high=2 ** 32)), log_orders=log_orders,
                                          symbol=symbol3, starting_cash=starting_cash, sigma_n=sigma_n,
                                          r_bar=r_bar_etf, q_max=10,
-                                         sigma_pv=5000000, R_min=x[1], R_max=x[2], eta=x[3], lambda_a=0.005) for j in
+                                         sigma_pv=5000000, R_min=x[1], R_max=x[2], eta=x[3], lambda_a=1e-12) for j in
                    range(agent_count, agent_count + x[0])])
     agent_types.extend(["ZeroIntelligenceAgent {}".format(strat_name) for j in range(x[0])])
     agent_count += x[0]
@@ -322,7 +339,7 @@ for i, x in enumerate(hbl):
                                                     seed=np.random.randint(low=0, high=2 ** 32)), log_orders=log_orders,
                                                 symbol=symbol1, starting_cash=starting_cash, sigma_n=sigma_n,
                                                 r_bar=s1['r_bar'], q_max=10, sigma_pv=5000000, R_min=x[1], R_max=x[2],
-                                                eta=x[3], lambda_a=0.005, L=x[4]) for j in
+                                                eta=x[3], lambda_a=1e-12, L=x[4]) for j in
                    range(agent_count, agent_count + x[0])])
     agent_types.extend(["HeuristicBeliefLearningAgent {}".format(strat_name) for j in range(x[0])])
     agent_count += x[0]
@@ -335,7 +352,7 @@ for i, x in enumerate(hbl):
                                                     seed=np.random.randint(low=0, high=2 ** 32)), log_orders=log_orders,
                                                 symbol=symbol2, starting_cash=starting_cash, sigma_n=sigma_n,
                                                 r_bar=s2['r_bar'], q_max=10, sigma_pv=5000000, R_min=x[1], R_max=x[2],
-                                                eta=x[3], lambda_a=0.005, L=x[4]) for j in
+                                                eta=x[3], lambda_a=1e-12, L=x[4]) for j in
                    range(agent_count, agent_count + x[0])])
     agent_types.extend(["HeuristicBeliefLearningAgent {}".format(strat_name) for j in range(x[0])])
     agent_count += x[0]
@@ -352,12 +369,12 @@ for i, x in enumerate(hbl):
                                                 r_bar=r_bar_etf,
                                                 #portfolio={'SYM1': s1['r_bar'], 'SYM2': s2['r_bar']},
                                                 q_max=10,
-                                                sigma_pv=5000000, R_min=x[1], R_max=x[2], eta=x[3], lambda_a=0.005,
+                                                sigma_pv=5000000, R_min=x[1], R_max=x[2], eta=x[3], lambda_a=1e-12,
                                                 L=x[4]) for j in range(agent_count, agent_count + x[0])])
     agent_types.extend(["HeuristicBeliefLearningAgent {}".format(strat_name) for j in range(x[0])])
     agent_count += x[0]
 
-# Trend followers agent    
+# Trend followers agent
 i = agent_count
 lookback = 10
 num_tf = 20
@@ -383,25 +400,26 @@ agent_count += num_tf
 # i+=1
 # agent_count += num_tf
 
-# ETF arbitrage agent    
+# ETF arbitrage agent
+
 i = agent_count
 gamma = 0
 num_arb = 25
 for j in range(num_arb):
     agents.append(EtfArbAgent(i, "Etf Arb Agent {}".format(i), "EtfArbAgent", portfolio=['SYM1', 'SYM2'], gamma=gamma,
-                              starting_cash=starting_cash, lambda_a=0.005, log_orders=log_orders,
+                              starting_cash=starting_cash, lambda_a=1e-12, log_orders=log_orders,
                               random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32))))
     agent_types.append("EtfArbAgent {}".format(i))
     i += 1
 agent_count += num_arb
 
-# ETF market maker agent    
+# ETF market maker agent
 # i = agent_count
 # gamma = 100
 # num_mm = 10
 mm = [(5, 0), (5, 50), (5, 100), (5, 200), (5, 300)]
 # for j in range(num_mm):
-# agents.append(EtfMarketMakerAgent(i, "Etf MM Agent {}".format(i), "EtfMarketMakerAgent", portfolio = ['IBM','GOOG'], gamma = gamma, starting_cash = starting_cash, lambda_a=0.005, log_orders=log_orders, random_state = np.random.RandomState(seed=np.random.randint(low=0,high=2**32))))
+# agents.append(EtfMarketMakerAgent(i, "Etf MM Agent {}".format(i), "EtfMarketMakerAgent", portfolio = ['IBM','GOOG'], gamma = gamma, starting_cash = starting_cash, lambda_a=1e-12, log_orders=log_orders, random_state = np.random.RandomState(seed=np.random.randint(low=0,high=2**32))))
 # agent_types.append("EtfMarketMakerAgent {}".format(i))
 # i+=1
 # agent_count += num_mm
@@ -411,7 +429,7 @@ for i, x in enumerate(mm):
     print(strat_name)
     agents.extend([EtfMarketMakerAgent(j, "Etf MM Agent {} {}".format(j, strat_name),
                                        "EtfMarketMakerAgent {}".format(strat_name), portfolio=['SYM1', 'SYM2'],
-                                       gamma=x[1], starting_cash=starting_cash, lambda_a=0.005, log_orders=log_orders,
+                                       gamma=x[1], starting_cash=starting_cash, lambda_a=1e-12, log_orders=log_orders,
                                        random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))
                    for j in range(agent_count, agent_count + x[0])])
     agent_types.extend(["EtfMarketMakerAgent {}".format(strat_name) for j in range(x[0])])

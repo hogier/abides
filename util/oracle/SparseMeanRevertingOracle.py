@@ -30,6 +30,8 @@ from math import exp, sqrt
 from util.util import log_print
 
 
+from util import util
+
 class SparseMeanRevertingOracle(MeanRevertingOracle):
 
   def __init__(self, mkt_open, mkt_close, symbols):
@@ -55,6 +57,7 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
 
     # Note that each value in the self.r dictionary is a 2-tuple of the timestamp at
     # which the series was computed and the true fundamental value at that time.
+
     for symbol in symbols:
       s = symbols[symbol]
       log_print ("SparseMeanRevertingOracle computing initial fundamental value for {}", symbol)
