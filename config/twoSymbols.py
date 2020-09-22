@@ -39,7 +39,7 @@ parser.add_argument('-r', '--shock_variance', type=float, default=500000,
                     help='Shock variance for mean reversion process (sigma^2_s)')
 parser.add_argument('-o', '--log_orders', action='store_true', default=True,
                     help='Log every order-related action by every agent.')
-parser.add_argument('-s', '--seed', type=int, default=None,
+parser.add_argument('-s', '--seed', type=int, default=1,
                     help='numpy.random.seed() for simulation')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Maximum verbosity!')
@@ -55,8 +55,9 @@ if args.config_help:
 # Historical date to simulate.  Required even if not relevant.
 historical_date = pd.to_datetime('2014-01-28')
 
+seed = args.seed
 # Requested log directory.
-log_dir = args.log_dir
+log_dir = args.log_dir + str(seed)
 
 # Requested order book snapshot archive frequency.
 book_freq = args.book_freq
@@ -86,7 +87,6 @@ impact = args.impact
 # agents still have their own separate PRNG sequence, and it is the same as
 # before)
 
-seed = 1  # args.seed
 if seed is not None:
     seed = int(pd.Timestamp.now().timestamp() * 1000000) % (2 ** 32 - 1)
 np.random.seed(seed)
@@ -408,7 +408,7 @@ gamma = 250
 num_arb = 50
 for j in range(num_arb):
     agents.append(EtfArbAgent(i, "Etf Arb Agent {}".format(i), "EtfArbAgent", portfolio=['SYM1', 'SYM2'], gamma=gamma,
-                              starting_cash=starting_cash, lambda_a=1e-12, log_orders=log_orders,
+                              starting_cash=starting_cash, lambda_a=1e-9, log_orders=log_orders,
                               random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32))))
     agent_types.append("EtfArbAgent {}".format(i))
     i += 1
@@ -430,7 +430,7 @@ for i, x in enumerate(mm):
     print(strat_name)
     agents.extend([EtfMarketMakerAgent(j, "Etf MM Agent {} {}".format(j, strat_name),
                                        "EtfMarketMakerAgent {}".format(strat_name), portfolio=['SYM1', 'SYM2'],
-                                       gamma=x[1], starting_cash=starting_cash, lambda_a=1e-12, log_orders=log_orders,
+                                       gamma=x[1], starting_cash=starting_cash, lambda_a=1e-9, log_orders=log_orders,
                                        random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)))
                    for j in range(agent_count, agent_count + x[0])])
     agent_types.extend(["EtfMarketMakerAgent {}".format(strat_name) for j in range(x[0])])
