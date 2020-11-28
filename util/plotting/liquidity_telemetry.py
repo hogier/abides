@@ -4,6 +4,7 @@ import os
 
 sys.path.append('../..')
 
+
 from realism.realism_utils import make_orderbook_for_analysis, MID_PRICE_CUTOFF
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
