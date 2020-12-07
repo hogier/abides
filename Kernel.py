@@ -459,7 +459,14 @@ class Kernel:
 
     self.currentAgentAdditionalDelay += additionalDelay
 
-
+  def findAllAgentsByType(self, type = None):
+    # Called to request all agents ID that matches the class or base class
+    # passed as "type".
+    ids = []
+    for agent in self.agents:
+      if isinstance(agent, type):
+        ids.append(agent.id)
+    return ids
 
   def findAgentByType(self, type = None):
     # Called to request an arbitrary agent ID that matches the class or base class
