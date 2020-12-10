@@ -215,7 +215,10 @@ agent_count += num_noise
 agent_types.extend(['NoiseAgent'])
 
 # 3) Herd Master Agents
-num_value = 10
+
+h_lambda_a = 7e-11
+
+num_value = 1
 agents.extend([HerdMasterAgent(id=j,
                           name="Herd Master Agent {}".format(j),
                           type="HerdMasterAgent",
@@ -224,7 +227,7 @@ agents.extend([HerdMasterAgent(id=j,
                           sigma_n=0,
                           r_bar=r_bar,
                           kappa=kappa,
-                          lambda_a=lambda_a,
+                          lambda_a=h_lambda_a,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])

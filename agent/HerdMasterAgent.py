@@ -98,7 +98,8 @@ class HerdMasterAgent(TradingAgent):
         else:
             if not self.trading:
                 self.trading = True
-
+                self.oracle.compute_fundamental_value_series(self.symbol, currentTime, sigma_n=0,
+                                         random_state=self.random_state)
                 # Time to start trading!
                 log_print("{} is ready to start trading now.", self.name)
 

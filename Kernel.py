@@ -6,6 +6,8 @@ from message.Message import MessageType
 
 from util.util import log_print
 
+import tqdm
+from datetime import date
 
 class Kernel:
 
@@ -184,7 +186,15 @@ class Kernel:
       # Process messages until there aren't any (at which point there never can
       # be again, because agents only "wake" in response to messages), or until
       # the kernel stop time is reached.
+      #base = pd.Timestamp('1950-01-01T12')
+      #start_second = np.int((self.startTime - base).total_seconds())
+      #stop_second = np.int((self.stopTime - base).total_seconds())
+      #pbar = tqdm.tqdm(range(start_second, stop_second))
+      #last_time = self.currentTime
       while not self.messages.empty() and self.currentTime and (self.currentTime <= self.stopTime):
+        #elapsed = (self.currentTime- last_time).total_seconds()
+        #pbar.update(elapsed)
+        #last_time = self.currentTime
         # Get the next message in timestamp order (delivery time) and extract it.
         self.currentTime, event = self.messages.get()
         msg_recipient, msg_type, msg = event

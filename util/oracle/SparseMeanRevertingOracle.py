@@ -41,6 +41,11 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
     self.mkt_close = mkt_close
     self.symbols = symbols
     self.f_log = {}
+    self.t_log = {}
+    self.fundamental_computed = {}
+    self.t_i = {}
+    self.t_j = {}
+
 
     # The dictionary r holds the most recent fundamental values for each symbol.
     self.r = {}
@@ -63,6 +68,10 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
       log_print ("SparseMeanRevertingOracle computing initial fundamental value for {}", symbol)
       self.r[symbol] = (mkt_open, s['r_bar'])
       self.f_log[symbol] = [{ 'FundamentalTime' : mkt_open, 'FundamentalValue' : s['r_bar'] }]
+      self.t_log[symbol] = [mkt_open]
+      self.fundamental_computed[symbol] = False
+      self.t_i[symbol] = 0
+      self.t_j[symbol] = 0
 
       # Compute the time and value of the first megashock.  Note that while the values are
       # mean-zero, they are intentionally bimodal (i.e. we always want to push the stock
@@ -122,6 +131,7 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
     
     # Append the change to the permanent log of fundamental values for this symbol.
     self.f_log[symbol].append({ 'FundamentalTime' : ts, 'FundamentalValue' : v })
+    self.t_log[symbol].append(ts)
 
     # Return the new value for the requested timestamp.
     return v
@@ -140,8 +150,21 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
 
     # This is the previous fundamental time and value.
     pt, pv = self.r[symbol]
-
     # If time hasn't changed since the last advance, just use the current value.
+    if self.t_log[symbol][self.t_i[symbol]] <= currentTime <= self.t_log[symbol][self.t_j[symbol]]:
+      return pv
+    elif self.t_log[symbol][self.t_j[symbol]] <= currentTime < self.t_log[symbol][-1]:
+      for j in range(self.t_j[symbol]+1, len(self.t_log[symbol])):
+        if currentTime < self.t_log[symbol][j]:
+          self.t_i[symbol] = j - 1
+          self.t_j[symbol] = np.min([j, len(self.t_log[symbol])-1])
+          break
+      r = self.f_log[symbol][self.t_i[symbol]]
+      pt = r['FundamentalTime']
+      pv = r['FundamentalValue']
+      self.r[symbol] = (pt, pv)
+      return pv
+
     if currentTime <= pt: return pv
 
     # Otherwise, we have some work to do, advancing time and computing the fundamental.
@@ -212,6 +235,34 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
   # Each agent must pass its RandomState object to observePrice.  This ensures that
   # each agent will receive the same answers across multiple same-seed simulations
   # even if a new agent has been added to the experiment.
+
+  def observePriceSpecial(self, symbol, currentTime, sigma_n = 1000, random_state = None):
+    curr_time = currentTime
+    if currentTime >= self.mkt_close:
+      curr_time = self.mkt_close - pd.Timedelta('1ns')
+
+    r_t = self.f_log[symbol][np.argwhere(np.asarray(self.t_log[symbol]).flatten() <= curr_time)[-1][0]]['FundamentalValue']
+
+    # Generate a noisy observation of fundamental value at the current time.
+    if sigma_n == 0:
+      obs = r_t
+    else:
+      obs = int(round(random_state.normal(loc=r_t, scale=sqrt(sigma_n))))
+
+    log_print("Oracle: current fundamental value is {} at {}", r_t, currentTime)
+    log_print("Oracle: giving client value observation {}", obs)
+
+    # Reminder: all simulator prices are specified in integer cents.
+    return obs
+
+  def compute_fundamental_value_series(self, symbol, currentTime, sigma_n = 1000, random_state = None):
+    if self.fundamental_computed[symbol]:
+      return
+    curr_time = currentTime
+    while curr_time < self.mkt_close:
+      self.observePrice(symbol, curr_time, sigma_n=sigma_n, random_state=random_state)
+      curr_time += pd.Timedelta(100000000, unit='ns')
+
   def observePrice(self, symbol, currentTime, sigma_n = 1000, random_state = None):
     # If the request is made after market close, return the close price.
     if currentTime >= self.mkt_close:
