@@ -214,26 +214,6 @@ agents.extend([NoiseAgent(id=j,
 agent_count += num_noise
 agent_types.extend(['NoiseAgent'])
 
-# 3) Herd Master Agents
-
-h_lambda_a = 7e-11
-
-num_value = 1
-agents.extend([HerdMasterAgent(id=j,
-                          name="Herd Master Agent {}".format(j),
-                          type="HerdMasterAgent",
-                          symbol=symbol,
-                          starting_cash=starting_cash,
-                          sigma_n=0,
-                          r_bar=r_bar,
-                          kappa=kappa,
-                          lambda_a=h_lambda_a,
-                          log_orders=log_orders,
-                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
-               for j in range(agent_count, agent_count + num_value)])
-agent_count += num_value
-agent_types.extend(['HerdMasterAgent'])
-
 # 3) Value Agents
 num_value = 100
 agents.extend([ValueAgent(id=j,
@@ -310,6 +290,26 @@ agents.extend([MomentumAgent(id=j,
                for j in range(agent_count, agent_count + num_momentum_agents)])
 agent_count += num_momentum_agents
 agent_types.extend("MomentumAgent")
+
+# 3) Herd Master Agents
+
+h_lambda_a = 7e-11
+
+num_value = 1
+agents.extend([HerdMasterAgent(id=j,
+                          name="Herd Master Agent {}".format(j),
+                          type="HerdMasterAgent",
+                          symbol=symbol,
+                          starting_cash=starting_cash,
+                          sigma_n=0,
+                          r_bar=r_bar,
+                          kappa=kappa,
+                          lambda_a=h_lambda_a,
+                          log_orders=log_orders,
+                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
+               for j in range(agent_count, agent_count + num_value)])
+agent_count += num_value
+agent_types.extend(['HerdMasterAgent'])
 
 # 6) Execution Agent
 

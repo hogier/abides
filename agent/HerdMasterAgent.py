@@ -111,8 +111,9 @@ class HerdMasterAgent(TradingAgent):
             # Market is closed and we already got the daily close price.
             return
 
-        delta_time = self.random_state.exponential(scale=1.0 / self.lambda_a)
-        self.setWakeup(currentTime + pd.Timedelta('{}ns'.format(int(round(delta_time)))))
+        delta_time = pd.Timedelta(self.random_state.randint(low=1000000, high=10000000), unit='ms')
+        if currentTime+delta_time < self.mkt_close:
+            self.setWakeup(currentTime + delta_time)
 
         if self.mkt_closed and (not self.symbol in self.daily_close_price):
             self.getCurrentSpread(self.symbol)
@@ -127,57 +128,20 @@ class HerdMasterAgent(TradingAgent):
         else:
             self.state = 'ACTIVE'
 
-    def updateEstimates(self):
-        # Called by a background agent that wishes to obtain a new fundamental observation,
-        # update its internal estimation parameters, and compute a new total valuation for the
-        # action it is considering.
-
-        # The agent obtains a new noisy observation of the current fundamental value
-        # and uses this to update its internal estimates in a Bayesian manner.
-        self.r_t = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=self.sigma_n,
-                                         random_state=self.random_state)
-        log_print("{} observed {} at {}", self.name, self.r_t, self.currentTime)
-
-        # Update internal estimates of the current fundamental value and our error of same.
-
-        # If this is our first estimate, treat the previous wake time as "market open".
-        if self.prev_wake_time is None: self.prev_wake_time = self.mkt_open
-
-        # Now having a best estimate of the fundamental at time t, we can make our best estimate
-        # of the final fundamental (for time T) as of current time t.  Delta is now the number
-        # of time steps remaining until the simulated exchange closes.
-        delta = max(0, (self.mkt_close - self.currentTime) / np.timedelta64(1, 'ns'))
-
-        # IDEA: instead of letting agent "imagine time forward" to the end of the day,
-        #       impose a maximum forward delta, like ten minutes or so.  This could make
-        #       them think more like traders and less like long-term investors.  Add
-        #       this line of code (keeping the max() line above) to try it.
-        # delta = min(delta, 1000000000 * 60 * 10)
-
-        r_T = (1 - (1 - self.kappa) ** delta) * self.r_bar
-        r_T += ((1 - self.kappa) ** delta) * self.r_t
-
-        # Our final fundamental estimate should be quantized to whole units of value.
-        r_T = int(round(r_T))
-
-        # Finally (for the final fundamental estimation section) remember the current
-        # time as the previous wake time.
-        self.prev_wake_time = self.currentTime
-
-        log_print("{} estimates r_T = {} as of {}", self.name, r_T, self.currentTime)
-
-        return r_T
-
     def placeOrder(self):
         #estimate final value of the fundamental price
         #used for surplus calculation
-        r_T = self.updateEstimates()
-
+        self.r_t = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=self.sigma_n,
+                                         random_state=self.random_state)
+        delta = pd.Timedelta(self.random_state.randint(low=100000, high=1000000), unit='ms')
+        r_f = self.oracle.observePriceSpecial(self.symbol, self.currentTime+delta, sigma_n=self.sigma_n,
+                                         random_state=self.random_state)
         bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
 
         if bid and ask:
             mid = int((ask+bid)/2)
             spread = abs(ask - bid)
+            print(self.currentTime, self.currentTime + delta, delta, self.r_t, r_f, mid)
 
             if np.random.rand() < self.percent_aggr:
                 adjust_int = 0
@@ -186,21 +150,23 @@ class HerdMasterAgent(TradingAgent):
                 #adjustment to the limit price, allowed to post inside the spread
                 #or deeper in the book as a passive order to maximize surplus
 
-            if r_T < mid:
+            if self.r_t < r_f:
                 #fundamental belief that price will go down, place a sell order
-                buy = False
-                p = bid + adjust_int #submit a market order to sell, limit order inside the spread or deeper in the book
-            elif r_T >= mid:
-                #fundamental belief that price will go up, buy order
                 buy = True
-                p = ask - adjust_int #submit a market order to buy, a limit order inside the spread or deeper in the book
+                p = ask - adjust_int #submit a market order to sell, limit order inside the spread or deeper in the book
+            elif self.r_t >= r_f:
+                #fundamental belief that price will go up, buy order
+                buy = False
+                p = bid + adjust_int #submit a market order to buy, a limit order inside the spread or deeper in the book
         else:
             # initialize randomly
             buy = np.random.randint(0, 1 + 1)
-            p = r_T
+            p = self.r_t
 
         # Place the order
-        self.placeLimitOrder(self.symbol, self.size, buy, p)
+        if self.currentTime+delta < self.mkt_close:
+            self.placeLimitOrder(self.symbol, self.size, buy, p)
+            self.setWakeup(self.currentTime + delta)
 
     def receiveMessage(self, currentTime, msg):
         # Parent class schedules market open wakeup call once market open/close times are known.
