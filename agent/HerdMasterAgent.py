@@ -44,7 +44,7 @@ class HerdMasterAgent(TradingAgent):
         self.percent_aggr = 0.1                 #percent of time that the agent will aggress the spread
         self.size = np.random.randint(20, 50)   #size that the agent will be placing
         self.depth_spread = 2
-
+        self.placed_orders = 0
         # for now let's do that the master is defined from the start of the kernel and it is fixed.
         # In a second moment I think I should do something like: the slave can ask for a list of registered masters
         # the exchange or a copy trading exchange agent which is on the same level of a market maker in terms of
@@ -142,7 +142,6 @@ class HerdMasterAgent(TradingAgent):
         if bid and ask:
             mid = int((ask+bid)/2)
             spread = abs(ask - bid)
-            print("MASTER", self.currentTime, self.currentTime + delta, delta, self.r_t, r_f, mid)
 
             if np.random.rand() < self.percent_aggr:
                 adjust_int = 0
@@ -196,16 +195,19 @@ class HerdMasterAgent(TradingAgent):
         if msg.body['msg'] == "ORDER_ACCEPTED":
             # Call the orderAccepted method, which subclasses should extend.
             order = msg.body['order']
+            self.placed_orders += 1
+
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
                                                            "order": order}))
-
         elif msg.body['msg'] == "ORDER_CANCELLED":
             # Call the orderCancelled method, which subclasses should extend.
             order = msg.body['order']
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_CANCELLED", "sender": self.id,
                                                            "order": order}))
+        elif msg.body['msg'] == "ORDER_EXECUTED":
+            order = msg.body['order']
 
         # Cancel all open orders.
         # Return value: did we issue any cancellation requests?

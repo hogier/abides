@@ -21,6 +21,7 @@ class HerdSlaveAgent(TradingAgent):
         # any special event or condition.
         self.state = 'AWAITING_WAKEUP'
 
+        self.placed_orders = 0
         self.percent_aggr = 0.1                 #percent of time that the agent will aggress the spread
         self.size = np.random.randint(20, 50)   #size that the agent will be placing
         self.depth_spread = 2
@@ -50,18 +51,14 @@ class HerdSlaveAgent(TradingAgent):
             # Market is closed and we already got the daily close price.
             return
 
-        delta_time = pd.Timedelta(self.random_state.randint(low=100000, high=1000000), unit='ms')
+        delta_time = pd.Timedelta(self.random_state.randint(low=1000000, high=10000000), unit='ms')
         if currentTime+delta_time < self.mkt_close:
             self.setWakeup(currentTime + delta_time)
-
-        self.cancelOrders()
 
         if self.mkt_closed and (not self.symbol in self.daily_close_price):
             self.getCurrentSpread(self.symbol)
             self.state = 'AWAITING_SPREAD'
             return
-
-        self.cancelOrders()
 
         if type(self) == HerdSlaveAgent:
             self.getCurrentSpread(self.symbol)
@@ -80,13 +77,15 @@ class HerdSlaveAgent(TradingAgent):
         if msg.body['msg'] == "MASTER_ORDER_ACCEPTED":
             # Call the orderAccepted method, which subclasses should extend.
             order = msg.body['order'].to_dict()
-
+            self.placed_orders += 1
             self.placeLimitOrder(order['symbol'], order['quantity'], order['is_buy_order'], order['limit_price'])
-
+        elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
+            self.cancelOrders()
+        elif msg.body['msg'] == "ORDER_EXECUTED":
+            order = msg.body['order']
 
     def cancelOrders(self):
         if not self.orders: return False
-
         for id, order in self.orders.items():
             self.cancelOrder(order)
 
