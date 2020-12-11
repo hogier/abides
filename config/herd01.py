@@ -23,6 +23,7 @@ from agent.ExchangeAgent import ExchangeAgent
 from agent.NoiseAgent import NoiseAgent
 from agent.ValueAgent import ValueAgent
 from agent.HerdMasterAgent import HerdMasterAgent
+from agent.HerdSlaveAgent import HerdSlaveAgent
 from agent.market_makers.AdaptiveMarketMakerAgent import AdaptiveMarketMakerAgent
 from agent.examples.MomentumAgent import MomentumAgent
 from agent.execution.POVExecutionAgent import POVExecutionAgent
@@ -310,6 +311,23 @@ agents.extend([HerdMasterAgent(id=j,
                for j in range(agent_count, agent_count + num_value)])
 agent_count += num_value
 agent_types.extend(['HerdMasterAgent'])
+
+# 3) Herd Slave Agents
+
+h_lambda_a = 7e-11
+
+num_value = 1
+agents.extend([HerdSlaveAgent(id=j,
+                          name="Herd Slave Agent {}".format(j),
+                          type="HerdSlaveAgent",
+                          symbol=symbol,
+                          starting_cash=starting_cash,
+                          delay=0,
+                          log_orders=log_orders,
+                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
+               for j in range(agent_count, agent_count + num_value)])
+agent_count += num_value
+agent_types.extend(['HerdSlaveAgent'])
 
 # 6) Execution Agent
 

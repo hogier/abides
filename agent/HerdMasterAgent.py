@@ -2,6 +2,7 @@ from agent.TradingAgent import TradingAgent
 from util.util import log_print
 from agent.HerdSlaveAgent import HerdSlaveAgent
 
+from message.Message import Message
 from math import sqrt
 import numpy as np
 import pandas as pd
@@ -141,7 +142,7 @@ class HerdMasterAgent(TradingAgent):
         if bid and ask:
             mid = int((ask+bid)/2)
             spread = abs(ask - bid)
-            print(self.currentTime, self.currentTime + delta, delta, self.r_t, r_f, mid)
+            print("MASTER", self.currentTime, self.currentTime + delta, delta, self.r_t, r_f, mid)
 
             if np.random.rand() < self.percent_aggr:
                 adjust_int = 0
@@ -191,6 +192,20 @@ class HerdMasterAgent(TradingAgent):
                 # strategic threshold parameter.
                 self.placeOrder()
                 self.state = 'AWAITING_WAKEUP'
+
+        if msg.body['msg'] == "ORDER_ACCEPTED":
+            # Call the orderAccepted method, which subclasses should extend.
+            order = msg.body['order']
+            for s_id in self.slave_ids:
+                self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
+                                                           "order": order}))
+
+        elif msg.body['msg'] == "ORDER_CANCELLED":
+            # Call the orderCancelled method, which subclasses should extend.
+            order = msg.body['order']
+            for s_id in self.slave_ids:
+                self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_CANCELLED", "sender": self.id,
+                                                           "order": order}))
 
         # Cancel all open orders.
         # Return value: did we issue any cancellation requests?

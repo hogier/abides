@@ -4,6 +4,8 @@
 
 from copy import deepcopy
 
+import pandas as pd
+
 
 class Order:
     order_id = 0
@@ -14,7 +16,7 @@ class Order:
         self.agent_id = agent_id
 
         # Time at which the order was created by the agent.
-        self.time_placed: pd_Timestamp = time_placed
+        self.time_placed: pd.Timestamp = time_placed
 
         # Equity symbol for the order.
         self.symbol = symbol

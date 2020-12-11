@@ -2,127 +2,95 @@ from agent.TradingAgent import TradingAgent
 from util.util import log_print
 
 import pandas as pd
+import numpy as np
 
 
 class HerdSlaveAgent(TradingAgent):
 
-    def __init__(self, id, name, type, starting_cash=100000, log_orders=False, random_state=None):
-
+    def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, delay=0, log_orders=False, random_state=None):
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
 
-        # for now let's do that the master is defined from the start of the kernel and it is fixed.
-        # In a second moment I think I should do something like: the slave can ask for a list of registered masters
-        # the exchange or a copy trading exchange agent which is on the same level of a market maker in terms of
-        # agent level in the market. Then decides who to follow and make everything more dynamic.
-        self.master_id = None
+
+        # The agent uses this to track whether it has begun its strategy or is still
+        # handling pre-market tasks.
+        self.trading = False
+        self.symbol = symbol
+        self.master_delay = delay
+
+        # The agent begins in its "complete" state, not waiting for
+        # any special event or condition.
+        self.state = 'AWAITING_WAKEUP'
+
+        self.percent_aggr = 0.1                 #percent of time that the agent will aggress the spread
+        self.size = np.random.randint(20, 50)   #size that the agent will be placing
+        self.depth_spread = 2
 
     def kernelStarting(self, start_time):
-
         super().kernelStarting(start_time)
 
-        # for now there is only 1 master agent in the configuration.
-        self.master_id = self.kernel.findAgentByType(HerdMasterAgent)
-
-    def kernelStopping(self):
-        # Always call parent method to be safe.
-        super().kernelStopping()
-
-        # Print end of day valuation.
-        H = int(round(self.getHoldings(self.symbol), -2) / 100)
-        # May request real fundamental value from oracle as part of final cleanup/stats.
-        #-------------------------------------------------
-        #if self.symbol != 'ETF':
-        rT = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=0, random_state=self.random_state)
-        #else:
-        #    portfolio_rT, rT = self.oracle.observePortfolioPrice(self.symbol, self.portfolio, self.currentTime,
-        #                                                         sigma_n=0,
-        #                                                         random_state=self.random_state)
-        #-------------------------------------------------
-
-        # Start with surplus as private valuation of shares held.
-        if H > 0:
-            surplus = sum([self.theta[x + self.q_max - 1] for x in range(1, H + 1)])
-        elif H < 0:
-            surplus = -sum([self.theta[x + self.q_max - 1] for x in range(H + 1, 1)])
-        else:
-            surplus = 0
-
-        log_print("surplus init: {}", surplus)
-
-        # Add final (real) fundamental value times shares held.
-        surplus += rT * H
-
-        log_print("surplus after holdings: {}", surplus)
-
-        # Add ending cash value and subtract starting cash value.
-        surplus += self.holdings['CASH'] - self.starting_cash
-
-        self.logEvent('FINAL_VALUATION', surplus, True)
-
-        log_print(
-            "{} final report.  Holdings {}, end cash {}, start cash {}, final fundamental {}, preferences {}, surplus {}",
-            self.name, H, self.holdings['CASH'], self.starting_cash, rT, self.theta, surplus)
-
-    # collects the subscription market data and processes meassages from the exchange such as when the market opens and closes
-    def receiveMessage(self, currentTime, msg):
-        super().receiveMessage(currentTime, msg)  # receives subscription market data
-        self.mid_price_history = self.mid_price_history.append(
-            pd.Series({'mid_price': self.getCurrentMidPrice()}, name=currentTime))
-        self.mid_price_history.dropna(inplace=True)
-
-    # populated with the orderbook subscription data by the receiveMessage method
-    # each a list, where each element is a tuple (price, quantity)
-    def getCurrentMidPrice(self):
-        try:
-            best_bid = self.current_bids[0][0]
-            best_ask = self.current_asks[0][0]
-            return round((best_ask + best_bid) / 2)
-        except (TypeError, IndexError):
-            return None
-
-    # next wakeup using randomness or some deterministic formula, it need not be a constant. Here for simplicity we set a constant wakeup.
-    def getWakeFrequency(self):
-
-        return pd.Timedelta(self.wake_freq)
-
-    # compute moving averages with the computeMidPriceMovingAverages
     def wakeup(self, currentTime):
         super().wakeup(currentTime)
-        short_moving_avg, long_moving_avg = self.computeMidPriceMovingAverages()
-        if short_moving_avg is not None and long_moving_avg is not None:
-            if short_moving_avg > long_moving_avg:
-                self.placeMarketOrder(self.order_size, 0)
-            elif short_moving_avg < long_moving_avg:
-                self.placeMarketOrder(self.order_size, 1)
 
-    def computeMidPriceMovingAverages(self):
-        try:
-            short_moving_avg = self.mid_price_history.rolling(self.short_window).mean().iloc[-1]['mid_price']
-            long_moving_avg = self.mid_price_history.rolling(self.long_window).mean().iloc[-1]['mid_price']
-            return short_moving_avg, long_moving_avg
-        except IndexError:
-            return None, None
+        self.state = 'INACTIVE'
 
-    def placeLimitOrder(self, quantity, is_buy_order, limit_price):
-        """ Place a limit order at the exchange.
-          :param quantity (int):      order quantity
-          :param is_buy_order (bool): True if Buy else False
-          :param limit_price: price level at which to place a limit order
-          :return:
-        """
-        super().placeLimitOrder(self.symbol, quantity, is_buy_order, limit_price)
+        if not self.mkt_open or not self.mkt_close:
+            # TradingAgent handles discovery of exchange times.
+            return
+        else:
+            if not self.trading:
+                self.trading = True
+                # Time to start trading!
+                log_print("{} is ready to start trading now.", self.name)
 
-    def placeMarketOrder(self, quantity, is_buy_order):
-        """ Place a market order at the exchange.
-          :param quantity (int):      order quantity
-          :param is_buy_order (bool): True if Buy else False
-          :return:
-        """
-        super().placeMarketOrder(self.symbol, quantity, is_buy_order)
+        # Steady state wakeup behavior starts here.
 
-    def cancelAllOrders(self):
-        """ Cancels all resting limit orders placed by the experimental agent.
-        """
-        for _, order in self.orders.items():
+        # If we've been told the market has closed for the day, we will only request
+        # final price information, then stop.
+        if self.mkt_closed and (self.symbol in self.daily_close_price):
+            # Market is closed and we already got the daily close price.
+            return
+
+        delta_time = pd.Timedelta(self.random_state.randint(low=100000, high=1000000), unit='ms')
+        if currentTime+delta_time < self.mkt_close:
+            self.setWakeup(currentTime + delta_time)
+
+        self.cancelOrders()
+
+        if self.mkt_closed and (not self.symbol in self.daily_close_price):
+            self.getCurrentSpread(self.symbol)
+            self.state = 'AWAITING_SPREAD'
+            return
+
+        self.cancelOrders()
+
+        if type(self) == HerdSlaveAgent:
+            self.getCurrentSpread(self.symbol)
+            self.state = 'AWAITING_SPREAD'
+        else:
+            self.state = 'ACTIVE'
+
+    def receiveMessage(self, currentTime, msg):
+        # Parent class schedules market open wakeup call once market open/close times are known.
+        super().receiveMessage(currentTime, msg)
+
+        # We have been awakened by something other than our scheduled wakeup.
+        # If our internal state indicates we were waiting for a particular event,
+        # check if we can transition to a new state.
+
+        if msg.body['msg'] == "MASTER_ORDER_ACCEPTED":
+            # Call the orderAccepted method, which subclasses should extend.
+            order = msg.body['order'].to_dict()
+
+            self.placeLimitOrder(order['symbol'], order['quantity'], order['is_buy_order'], order['limit_price'])
+
+
+    def cancelOrders(self):
+        if not self.orders: return False
+
+        for id, order in self.orders.items():
             self.cancelOrder(order)
 
+        return True
+
+    def getWakeFrequency(self):
+        return pd.Timedelta(self.random_state.randint(low=0, high=100), unit='ns')
