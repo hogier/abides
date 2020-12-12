@@ -88,7 +88,7 @@ class HerdSlaveAgent(TradingAgent):
             # Call the orderAccepted method, which subclasses should extend.
             order = msg.body['order'].to_dict()
             self.placed_orders += 1
-            print(self.id, self.currentTime, self.placed_orders)
+            #print(self.id, self.currentTime, self.placed_orders)
             self.placeLimitOrder(order['symbol'], order['quantity'], order['is_buy_order'], order['limit_price'])
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()

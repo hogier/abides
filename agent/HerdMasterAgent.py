@@ -11,7 +11,7 @@ import pandas as pd
 class HerdMasterAgent(TradingAgent):
 
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, sigma_n=0,
-                 r_bar=100000, kappa=0.05, sigma_s=100000, wakeup_freq = 100000, future_window = 100000,
+                 r_bar=100000, kappa=0.05, sigma_s=100000, future_window = 100000,
                  lambda_a=0.005, log_orders=False, random_state=None):
 
         # Base class init.
@@ -24,7 +24,6 @@ class HerdMasterAgent(TradingAgent):
         self.kappa = kappa  # mean reversion parameter
         self.sigma_s = sigma_s  # shock variance
         self.lambda_a = lambda_a  # mean arrival rate of ZI agents
-        self.wakeup_freq = wakeup_freq
         self.future_window = future_window
 
         # The agent uses this to track whether it has begun its strategy or is still
@@ -117,10 +116,6 @@ class HerdMasterAgent(TradingAgent):
             # Market is closed and we already got the daily close price.
             return
 
-        delta_time = self.getWakeFrequency()
-        if currentTime+delta_time < self.mkt_close:
-            self.setWakeup(currentTime + delta_time)
-
         if self.mkt_closed and (not self.symbol in self.daily_close_price):
             self.getCurrentSpread(self.symbol)
             self.state = 'AWAITING_SPREAD'
@@ -140,6 +135,9 @@ class HerdMasterAgent(TradingAgent):
         self.r_t = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=self.sigma_n,
                                          random_state=self.random_state)
         delta = pd.Timedelta(self.random_state.randint(low=self.future_window/10, high=self.future_window), unit='ns')
+        if self.currentTime+delta < self.mkt_close:
+            self.setWakeup(self.currentTime + delta)
+
         r_f = self.oracle.observePriceSpecial(self.symbol, self.currentTime+delta, sigma_n=self.sigma_n,
                                          random_state=self.random_state)
         bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
@@ -204,7 +202,7 @@ class HerdMasterAgent(TradingAgent):
             # Call the orderAccepted method, which subclasses should extend.
             order = msg.body['order']
             self.placed_orders += 1
-            print('M', self.currentTime, self.placed_orders)
+            #print('M', self.currentTime, self.placed_orders)
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
                                                            "order": order}), delay=self.slave_delays[s_id])
@@ -229,4 +227,4 @@ class HerdMasterAgent(TradingAgent):
         return True
 
     def getWakeFrequency(self):
-        return pd.Timedelta(self.random_state.randint(low=self.wakeup_freq/10, high=self.wakeup_freq), unit='ns')
+        return pd.Timedelta(self.random_state.randint(low=10, high=100), unit='ns')

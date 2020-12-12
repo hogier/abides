@@ -275,7 +275,7 @@ agent_types.extend('POVMarketMakerAgent')
 
 
 # 5) Momentum Agents
-num_momentum_agents = 25
+num_momentum_agents = 100
 
 agents.extend([MomentumAgent(id=j,
                              name="MOMENTUM_AGENT_{}".format(j),
@@ -306,8 +306,7 @@ agents.extend([HerdMasterAgent(id=j,
                           r_bar=r_bar,
                           kappa=kappa,
                           lambda_a=h_lambda_a,
-                          wakeup_freq=10e+10,
-                          future_window=10e+11,
+                          future_window=10e+10,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])
@@ -318,7 +317,7 @@ agent_types.extend(['HerdMasterAgent'])
 
 h_lambda_a = 7e-11
 
-num_value = 2
+num_value = 5
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",
