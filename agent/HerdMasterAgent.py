@@ -11,7 +11,7 @@ import pandas as pd
 class HerdMasterAgent(TradingAgent):
 
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, sigma_n=0,
-                 r_bar=100000, kappa=0.05, sigma_s=100000,
+                 r_bar=100000, kappa=0.05, sigma_s=100000, wakeup_freq = 100000, future_window = 100000,
                  lambda_a=0.005, log_orders=False, random_state=None):
 
         # Base class init.
@@ -24,6 +24,8 @@ class HerdMasterAgent(TradingAgent):
         self.kappa = kappa  # mean reversion parameter
         self.sigma_s = sigma_s  # shock variance
         self.lambda_a = lambda_a  # mean arrival rate of ZI agents
+        self.wakeup_freq = wakeup_freq
+        self.future_window = future_window
 
         # The agent uses this to track whether it has begun its strategy or is still
         # handling pre-market tasks.
@@ -50,6 +52,7 @@ class HerdMasterAgent(TradingAgent):
         # the exchange or a copy trading exchange agent which is on the same level of a market maker in terms of
         # agent level in the market. Then decides who to follow and make everything more dynamic.
         self.slave_ids = []
+        self.slave_delays = {}
 
     def kernelStarting(self, startTime):
         super().kernelStarting(startTime)
@@ -95,6 +98,8 @@ class HerdMasterAgent(TradingAgent):
 
         if not self.mkt_open or not self.mkt_close:
             # TradingAgent handles discovery of exchange times.
+            for s_id in self.slave_ids:
+                self.sendMessage(recipientID = s_id, msg = Message({"msg": "SLAVE_DELAY_REQUEST", "sender": self.id}))
             return
         else:
             if not self.trading:
@@ -112,7 +117,7 @@ class HerdMasterAgent(TradingAgent):
             # Market is closed and we already got the daily close price.
             return
 
-        delta_time = pd.Timedelta(self.random_state.randint(low=1000000, high=10000000), unit='ms')
+        delta_time = self.getWakeFrequency()
         if currentTime+delta_time < self.mkt_close:
             self.setWakeup(currentTime + delta_time)
 
@@ -134,7 +139,7 @@ class HerdMasterAgent(TradingAgent):
         #used for surplus calculation
         self.r_t = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=self.sigma_n,
                                          random_state=self.random_state)
-        delta = pd.Timedelta(self.random_state.randint(low=100000, high=1000000), unit='ms')
+        delta = pd.Timedelta(self.random_state.randint(low=self.future_window/10, high=self.future_window), unit='ns')
         r_f = self.oracle.observePriceSpecial(self.symbol, self.currentTime+delta, sigma_n=self.sigma_n,
                                          random_state=self.random_state)
         bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
@@ -192,20 +197,23 @@ class HerdMasterAgent(TradingAgent):
                 self.placeOrder()
                 self.state = 'AWAITING_WAKEUP'
 
-        if msg.body['msg'] == "ORDER_ACCEPTED":
+        if msg.body['msg'] == "SLAVE_DELAY_RESPONSE":
+            # Call the orderAccepted method, which subclasses should extend.
+            self.slave_delays[msg.body['sender']] = msg.body['delay']
+        elif msg.body['msg'] == "ORDER_ACCEPTED":
             # Call the orderAccepted method, which subclasses should extend.
             order = msg.body['order']
             self.placed_orders += 1
-
+            print('M', self.currentTime, self.placed_orders)
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
-                                                           "order": order}))
+                                                           "order": order}), delay=self.slave_delays[s_id])
         elif msg.body['msg'] == "ORDER_CANCELLED":
             # Call the orderCancelled method, which subclasses should extend.
             order = msg.body['order']
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_CANCELLED", "sender": self.id,
-                                                           "order": order}))
+                                                           "order": order}), delay=self.slave_delays[s_id])
         elif msg.body['msg'] == "ORDER_EXECUTED":
             order = msg.body['order']
 
@@ -221,4 +229,4 @@ class HerdMasterAgent(TradingAgent):
         return True
 
     def getWakeFrequency(self):
-        return pd.Timedelta(self.random_state.randint(low=0, high=100), unit='ns')
+        return pd.Timedelta(self.random_state.randint(low=self.wakeup_freq/10, high=self.wakeup_freq), unit='ns')

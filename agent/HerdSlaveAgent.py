@@ -4,10 +4,13 @@ from util.util import log_print
 import pandas as pd
 import numpy as np
 
+from message.Message import Message
+
 
 class HerdSlaveAgent(TradingAgent):
 
-    def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, delay=0, log_orders=False, random_state=None):
+    def __init__(self, id, name, type, symbol='IBM', starting_cash=100000,
+                 min_delay=0, max_delay=0, log_orders=False, random_state=None):
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
 
 
@@ -15,7 +18,7 @@ class HerdSlaveAgent(TradingAgent):
         # handling pre-market tasks.
         self.trading = False
         self.symbol = symbol
-        self.master_delay = delay
+        self.master_delay = self.random_state.randint(low=min_delay, high=max_delay)
 
         # The agent begins in its "complete" state, not waiting for
         # any special event or condition.
@@ -25,6 +28,8 @@ class HerdSlaveAgent(TradingAgent):
         self.percent_aggr = 0.1                 #percent of time that the agent will aggress the spread
         self.size = np.random.randint(20, 50)   #size that the agent will be placing
         self.depth_spread = 2
+
+        self.master_id = None
 
     def kernelStarting(self, start_time):
         super().kernelStarting(start_time)
@@ -74,10 +79,16 @@ class HerdSlaveAgent(TradingAgent):
         # If our internal state indicates we were waiting for a particular event,
         # check if we can transition to a new state.
 
-        if msg.body['msg'] == "MASTER_ORDER_ACCEPTED":
+        if msg.body['msg'] == "SLAVE_DELAY_REQUEST":
+            # Call the orderAccepted method, which subclasses should extend.
+            self.master_id = msg.body['sender']
+            self.sendMessage(recipientID=self.master_id, msg=Message({"msg": "SLAVE_DELAY_RESPONSE", "sender": self.id,
+                                                            "delay": self.master_delay}))
+        elif msg.body['msg'] == "MASTER_ORDER_ACCEPTED":
             # Call the orderAccepted method, which subclasses should extend.
             order = msg.body['order'].to_dict()
             self.placed_orders += 1
+            print(self.id, self.currentTime, self.placed_orders)
             self.placeLimitOrder(order['symbol'], order['quantity'], order['is_buy_order'], order['limit_price'])
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()

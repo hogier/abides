@@ -292,7 +292,7 @@ agents.extend([MomentumAgent(id=j,
 agent_count += num_momentum_agents
 agent_types.extend("MomentumAgent")
 
-# 3) Herd Master Agents
+# 6) Herd Master Agents
 
 h_lambda_a = 7e-11
 
@@ -306,30 +306,33 @@ agents.extend([HerdMasterAgent(id=j,
                           r_bar=r_bar,
                           kappa=kappa,
                           lambda_a=h_lambda_a,
+                          wakeup_freq=10e+10,
+                          future_window=10e+11,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])
 agent_count += num_value
 agent_types.extend(['HerdMasterAgent'])
 
-# 3) Herd Slave Agents
+# 7) Herd Slave Agents
 
 h_lambda_a = 7e-11
 
-num_value = 1
+num_value = 2
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",
                           symbol=symbol,
                           starting_cash=starting_cash,
-                          delay=0,
+                          min_delay=2e+5,
+                          max_delay=2e+6,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])
 agent_count += num_value
 agent_types.extend(['HerdSlaveAgent'])
 
-# 6) Execution Agent
+# 8) Execution Agent
 
 trade = True if args.execution_agents else False
 
