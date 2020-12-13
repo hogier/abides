@@ -3,7 +3,6 @@ from util.util import log_print
 from agent.HerdSlaveAgent import HerdSlaveAgent
 
 from message.Message import Message
-from math import sqrt
 import numpy as np
 import pandas as pd
 
@@ -87,16 +86,12 @@ class HerdMasterAgent(TradingAgent):
             "{} final report.  Holdings {}, end cash {}, start cash {}, final fundamental {}, surplus {}",
             self.name, H, self.holdings['CASH'], self.starting_cash, rT, surplus)
 
-        #print("Final surplus", self.name, surplus)
-
     def wakeup(self, currentTime):
-        # Parent class handles discovery of exchange times and market_open wakeup call.
         super().wakeup(currentTime)
 
         self.state = 'INACTIVE'
 
         if not self.mkt_open or not self.mkt_close:
-            # TradingAgent handles discovery of exchange times.
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID = s_id, msg = Message({"msg": "SLAVE_DELAY_REQUEST", "sender": self.id}))
             return
@@ -104,16 +99,10 @@ class HerdMasterAgent(TradingAgent):
             if not self.trading:
                 self.trading = True
                 self.oracle.compute_fundamental_value_series(self.symbol, currentTime, sigma_n=0,
-                                         random_state=self.random_state)
-                # Time to start trading!
+                                                             random_state=self.random_state)
                 log_print("{} is ready to start trading now.", self.name)
 
-        # Steady state wakeup behavior starts here.
-
-        # If we've been told the market has closed for the day, we will only request
-        # final price information, then stop.
         if self.mkt_closed and (self.symbol in self.daily_close_price):
-            # Market is closed and we already got the daily close price.
             return
 
         if self.mkt_closed and (not self.symbol in self.daily_close_price):
@@ -130,16 +119,14 @@ class HerdMasterAgent(TradingAgent):
             self.state = 'ACTIVE'
 
     def placeOrder(self):
-        #estimate final value of the fundamental price
-        #used for surplus calculation
         self.r_t = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=self.sigma_n,
-                                         random_state=self.random_state)
+                                            random_state=self.random_state)
         delta = pd.Timedelta(self.random_state.randint(low=self.future_window/10, high=self.future_window), unit='ns')
         if self.currentTime+delta < self.mkt_close:
             self.setWakeup(self.currentTime + delta)
 
         r_f = self.oracle.observePriceSpecial(self.symbol, self.currentTime+delta, sigma_n=self.sigma_n,
-                                         random_state=self.random_state)
+                                              random_state=self.random_state)
         bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
 
         if bid and ask:
@@ -149,18 +136,14 @@ class HerdMasterAgent(TradingAgent):
             if np.random.rand() < self.percent_aggr:
                 adjust_int = 0
             else:
-                adjust_int = np.random.randint( 0, self.depth_spread*spread )
-                #adjustment to the limit price, allowed to post inside the spread
-                #or deeper in the book as a passive order to maximize surplus
+                adjust_int = np.random.randint(0, self.depth_spread*spread)
 
             if self.r_t < r_f:
-                #fundamental belief that price will go down, place a sell order
                 buy = True
-                p = ask - adjust_int #submit a market order to sell, limit order inside the spread or deeper in the book
+                p = ask - adjust_int
             elif self.r_t >= r_f:
-                #fundamental belief that price will go up, buy order
                 buy = False
-                p = bid + adjust_int #submit a market order to buy, a limit order inside the spread or deeper in the book
+                p = bid + adjust_int
         else:
             # initialize randomly
             buy = np.random.randint(0, 1 + 1)
@@ -172,51 +155,34 @@ class HerdMasterAgent(TradingAgent):
             self.setWakeup(self.currentTime + delta)
 
     def receiveMessage(self, currentTime, msg):
-        # Parent class schedules market open wakeup call once market open/close times are known.
         super().receiveMessage(currentTime, msg)
 
-        # We have been awakened by something other than our scheduled wakeup.
-        # If our internal state indicates we were waiting for a particular event,
-        # check if we can transition to a new state.
-
         if self.state == 'AWAITING_SPREAD':
-            # We were waiting to receive the current spread/book.  Since we don't currently
-            # track timestamps on retained information, we rely on actually seeing a
-            # QUERY_SPREAD response message.
 
             if msg.body['msg'] == 'QUERY_SPREAD':
-                # This is what we were waiting for.
+                if self.mkt_closed:
+                    return
 
-                # But if the market is now closed, don't advance to placing orders.
-                if self.mkt_closed: return
-
-                # We now have the information needed to place a limit order with the eta
-                # strategic threshold parameter.
                 self.placeOrder()
                 self.state = 'AWAITING_WAKEUP'
 
         if msg.body['msg'] == "SLAVE_DELAY_RESPONSE":
-            # Call the orderAccepted method, which subclasses should extend.
             self.slave_delays[msg.body['sender']] = msg.body['delay']
         elif msg.body['msg'] == "ORDER_ACCEPTED":
-            # Call the orderAccepted method, which subclasses should extend.
             order = msg.body['order']
             self.placed_orders += 1
             #print('M', self.currentTime, self.placed_orders)
             for s_id in self.slave_ids:
-                self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
-                                                           "order": order}), delay=self.slave_delays[s_id])
+                self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
+                                                                "order": order}), delay=self.slave_delays[s_id])
         elif msg.body['msg'] == "ORDER_CANCELLED":
             # Call the orderCancelled method, which subclasses should extend.
             order = msg.body['order']
             for s_id in self.slave_ids:
-                self.sendMessage(recipientID = s_id, msg = Message({"msg": "MASTER_ORDER_CANCELLED", "sender": self.id,
-                                                           "order": order}), delay=self.slave_delays[s_id])
+                self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_CANCELLED", "sender": self.id,
+                                                                "order": order}), delay=self.slave_delays[s_id])
         elif msg.body['msg'] == "ORDER_EXECUTED":
             order = msg.body['order']
-
-        # Cancel all open orders.
-        # Return value: did we issue any cancellation requests?
 
     def cancelOrders(self):
         if not self.orders: return False
