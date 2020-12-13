@@ -72,12 +72,14 @@ class HerdSlaveAgent(TradingAgent):
         elif msg.body['msg'] == "MASTER_ORDER_ACCEPTED":
             order = msg.body['order'].to_dict()
             self.placed_orders += 1
-            print(self.id, self.currentTime, self.placed_orders, )
+
+            self.cancelOrders()
             self.placeLimitOrder(order['symbol'], order['quantity'], order['is_buy_order'], order['limit_price'])
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()
         elif msg.body['msg'] == "ORDER_EXECUTED":
             order = msg.body['order']
+            # print(self.id, order.to_dict())
 
     def cancelOrders(self):
         if not self.orders: return False

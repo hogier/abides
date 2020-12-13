@@ -10,7 +10,7 @@ import pandas as pd
 class HerdMasterAgent(TradingAgent):
 
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, sigma_n=0,
-                 r_bar=100000, kappa=0.05, sigma_s=100000, future_window = 100000,
+                 r_bar=100000, kappa=0.05, sigma_s=100000, future_window=100000,
                  lambda_a=0.005, log_orders=False, random_state=None):
 
         # Base class init.
@@ -36,13 +36,14 @@ class HerdMasterAgent(TradingAgent):
         # The agent maintains two priors: r_t and sigma_t (value and error estimates).
         self.r_t = r_bar
         self.sigma_t = 0
+        self.oracle = None
 
         # The agent must track its previous wake time, so it knows how many time
         # units have passed.
         self.prev_wake_time = None
 
-        self.percent_aggr = 0.1                 #percent of time that the agent will aggress the spread
-        self.size = np.random.randint(20, 50)   #size that the agent will be placing
+        self.percent_aggr = 0.1                 # percent of time that the agent will aggres the spread
+        self.size = np.random.randint(20, 50)   # size that the agent will be placing
         self.depth_spread = 2
         self.placed_orders = 0
         # for now let's do that the master is defined from the start of the kernel and it is fixed.
@@ -65,26 +66,26 @@ class HerdMasterAgent(TradingAgent):
         super().kernelStopping()
 
         # Print end of day valuation.
-        H = int(round(self.getHoldings(self.symbol), -2) / 100)
+        h = int(round(self.getHoldings(self.symbol), -2) / 100)
         # May request real fundamental value from oracle as part of final cleanup/stats.
 
-        #marked to fundamental
-        rT = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=0, random_state=self.random_state)
+        # marked to fundamental
+        r_t = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=0, random_state=self.random_state)
 
         # final (real) fundamental value times shares held.
-        surplus = rT * H
+        surplus = r_t * h
 
         log_print("surplus after holdings: {}", surplus)
 
         # Add ending cash value and subtract starting cash value.
         surplus += self.holdings['CASH'] - self.starting_cash
-        surplus = float( surplus )/self.starting_cash
+        surplus = float(surplus)/self.starting_cash
 
         self.logEvent('FINAL_VALUATION', surplus, True)
 
         log_print(
             "{} final report.  Holdings {}, end cash {}, start cash {}, final fundamental {}, surplus {}",
-            self.name, H, self.holdings['CASH'], self.starting_cash, rT, surplus)
+            self.name, h, self.holdings['CASH'], self.starting_cash, r_t, surplus)
 
     def wakeup(self, currentTime):
         super().wakeup(currentTime)
@@ -93,7 +94,7 @@ class HerdMasterAgent(TradingAgent):
 
         if not self.mkt_open or not self.mkt_close:
             for s_id in self.slave_ids:
-                self.sendMessage(recipientID = s_id, msg = Message({"msg": "SLAVE_DELAY_REQUEST", "sender": self.id}))
+                self.sendMessage(recipientID=s_id, msg=Message({"msg": "SLAVE_DELAY_REQUEST", "sender": self.id}))
             return
         else:
             if not self.trading:
@@ -105,7 +106,7 @@ class HerdMasterAgent(TradingAgent):
         if self.mkt_closed and (self.symbol in self.daily_close_price):
             return
 
-        if self.mkt_closed and (not self.symbol in self.daily_close_price):
+        if self.mkt_closed and (self.symbol not in self.daily_close_price):
             self.getCurrentSpread(self.symbol)
             self.state = 'AWAITING_SPREAD'
             return
@@ -128,9 +129,8 @@ class HerdMasterAgent(TradingAgent):
         r_f = self.oracle.observePriceSpecial(self.symbol, self.currentTime+delta, sigma_n=self.sigma_n,
                                               random_state=self.random_state)
         bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
-
+        size = self.size
         if bid and ask:
-            mid = int((ask+bid)/2)
             spread = abs(ask - bid)
 
             if np.random.rand() < self.percent_aggr:
@@ -141,18 +141,23 @@ class HerdMasterAgent(TradingAgent):
             if self.r_t < r_f:
                 buy = True
                 p = ask - adjust_int
-            elif self.r_t >= r_f:
+                if p >= r_f:
+                    return
+            else:
                 buy = False
                 p = bid + adjust_int
+                size = self.getHoldings(self.symbol) if self.getHoldings(self.symbol) > 0 else self.size
+                if p <= r_f:
+                    return
         else:
-            # initialize randomly
-            buy = np.random.randint(0, 1 + 1)
-            p = self.r_t
+            return
 
-        # Place the order
+        h = self.getHoldings(self.symbol)
+        surplus = self.r_t * h
+        print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
+              self.holdings['CASH'] + surplus)
         if self.currentTime+delta < self.mkt_close:
-            self.placeLimitOrder(self.symbol, self.size, buy, p)
-            self.setWakeup(self.currentTime + delta)
+            self.placeLimitOrder(self.symbol, size, buy, p)
 
     def receiveMessage(self, currentTime, msg):
         super().receiveMessage(currentTime, msg)
@@ -171,23 +176,21 @@ class HerdMasterAgent(TradingAgent):
         elif msg.body['msg'] == "ORDER_ACCEPTED":
             order = msg.body['order']
             self.placed_orders += 1
-            #print('M', self.currentTime, self.placed_orders)
+            # print('M', self.currentTime, self.placed_orders)
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
                                                                 "order": order}), delay=self.slave_delays[s_id])
         elif msg.body['msg'] == "ORDER_CANCELLED":
-            # Call the orderCancelled method, which subclasses should extend.
             order = msg.body['order']
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_CANCELLED", "sender": self.id,
                                                                 "order": order}), delay=self.slave_delays[s_id])
-        elif msg.body['msg'] == "ORDER_EXECUTED":
-            order = msg.body['order']
 
     def cancelOrders(self):
-        if not self.orders: return False
+        if not self.orders:
+            return False
 
-        for id, order in self.orders.items():
+        for _, order in self.orders.items():
             self.cancelOrder(order)
 
         return True
