@@ -154,8 +154,8 @@ class HerdMasterAgent(TradingAgent):
 
         h = self.getHoldings(self.symbol)
         surplus = self.r_t * h
-        print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
-              self.holdings['CASH'] + surplus)
+        # print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
+        #      self.holdings['CASH'] + surplus)
         if self.currentTime+delta < self.mkt_close:
             self.placeLimitOrder(self.symbol, size, buy, p)
 

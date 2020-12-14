@@ -24,6 +24,12 @@ class HerdSlaveAgent(TradingAgent):
     def kernelStarting(self, start_time):
         super().kernelStarting(start_time)
 
+    def kernelStopping(self):
+        super().kernelStopping()
+
+        cash = self.markToMarket(self.holdings)
+        print("Final value for {}: {}.  Having delay: {}".format(self.name, cash, self.master_delay))
+
     def wakeup(self, currentTime):
         super().wakeup(currentTime)
 
@@ -74,7 +80,11 @@ class HerdSlaveAgent(TradingAgent):
             self.placed_orders += 1
 
             self.cancelOrders()
-            self.placeLimitOrder(order['symbol'], order['quantity'], order['is_buy_order'], order['limit_price'])
+            if order['is_buy_order']:
+                quantity = order['quantity']
+            else:
+                quantity = self.getHoldings(self.symbol)
+            self.placeLimitOrder(order['symbol'], quantity, order['is_buy_order'], order['limit_price'])
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()
         elif msg.body['msg'] == "ORDER_EXECUTED":

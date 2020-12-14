@@ -324,7 +324,7 @@ agents.extend([HerdSlaveAgent(id=j,
                           symbol=symbol,
                           starting_cash=starting_cash,
                           min_delay=2e+5,
-                          max_delay=2e+6,
+                          max_delay=4e+6,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])
