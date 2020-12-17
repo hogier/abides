@@ -54,6 +54,8 @@ class HerdMasterAgent(TradingAgent):
         self.slave_delays = {}
 
     def kernelStarting(self, startTime):
+        self.logEvent('WAKE_FREQUENCY', self.future_window, True)
+
         super().kernelStarting(startTime)
 
         self.oracle = self.kernel.oracle
@@ -122,7 +124,8 @@ class HerdMasterAgent(TradingAgent):
     def placeOrder(self):
         self.r_t = self.oracle.observePrice(self.symbol, self.currentTime, sigma_n=self.sigma_n,
                                             random_state=self.random_state)
-        delta = pd.Timedelta(self.random_state.randint(low=self.future_window/10, high=self.future_window), unit='ns')
+        #delta = pd.Timedelta(self.random_state.randint(low=self.future_window/2, high=self.future_window), unit='ns')
+        delta = pd.Timedelta(self.future_window, unit='ns')
         if self.currentTime+delta < self.mkt_close:
             self.setWakeup(self.currentTime + delta)
 

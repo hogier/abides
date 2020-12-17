@@ -22,13 +22,12 @@ class HerdSlaveAgent(TradingAgent):
         self.master_id = None
 
     def kernelStarting(self, start_time):
+        self.logEvent('DELAY', self.master_delay, True)
+
         super().kernelStarting(start_time)
 
     def kernelStopping(self):
         super().kernelStopping()
-
-        cash = self.markToMarket(self.holdings)
-        print("Final value for {}: {}.  Having delay: {}".format(self.name, cash, self.master_delay))
 
     def wakeup(self, currentTime):
         super().wakeup(currentTime)

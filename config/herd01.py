@@ -125,6 +125,12 @@ parser.add_argument('--fund-vol',
                     help='Volatility of fundamental time series.'
                     )
 
+parser.add_argument('--master-window',
+                    type=float,
+                    default=1e+10,
+                    help='Herd Master wakeup frequency.'
+                    )
+
 args, remaining_args = parser.parse_known_args()
 
 if args.config_help:
@@ -295,6 +301,7 @@ agent_types.extend("MomentumAgent")
 # 6) Herd Master Agents
 
 h_lambda_a = 7e-11
+future_window = args.master_window
 
 num_value = 1
 agents.extend([HerdMasterAgent(id=j,
@@ -306,7 +313,7 @@ agents.extend([HerdMasterAgent(id=j,
                           r_bar=r_bar,
                           kappa=kappa,
                           lambda_a=h_lambda_a,
-                          future_window=4e+10,
+                          future_window=future_window,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])
@@ -317,14 +324,14 @@ agent_types.extend(['HerdMasterAgent'])
 
 h_lambda_a = 7e-11
 
-num_value = 5
+num_value = 60
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",
                           symbol=symbol,
                           starting_cash=starting_cash,
-                          min_delay=2e+5,
-                          max_delay=4e+6,
+                          min_delay=1e+2,
+                          max_delay=1e+8,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])
