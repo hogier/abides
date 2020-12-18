@@ -134,12 +134,16 @@ def process_orderbook(df, level):
 
     # Make DataFrame reshaped to LOBSTER format
     rows_list = []
+    nearly_lobster = pd.DataFrame([])
+    i = 0
     for row in tqdm(unstacked.iterrows(), total=len(unstacked.index), desc="Processing order book"):
         row_dict = process_row(row, quote_levels)
+        if i % 1000 == 0:
+            nearly_lobster = nearly_lobster.append(rows_list, ignore_index=True)
+            rows_list = []
         rows_list.append(row_dict)
-
-    nearly_lobster = pd.DataFrame(rows_list)
-
+        i += 1
+    nearly_lobster = nearly_lobster.append(rows_list, ignore_index=True)
     # Reorder columns
     unordered_cols = list(nearly_lobster.columns)
     new_col_list = reorder_columns(unordered_cols)

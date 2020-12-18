@@ -14,6 +14,8 @@ from functools import reduce
 from scipy.sparse import dok_matrix
 from tqdm import tqdm
 
+from sys import getsizeof
+
 
 class OrderBook:
 
@@ -504,29 +506,22 @@ class OrderBook:
             for bids, positive for asks) this volume is written in the column corresponding to the price level. If there
             is no volume at a given price level, the corresponding column has a `0`.
 
-            The data is stored in a sparse format, such that a value of `0` takes up no space.
-
         :return:
         """
-        quotes = sorted(list(self.quotes_seen))
-        log_len = len(self.book_log)
-        quote_idx_dict = {quote: idx for idx, quote in enumerate(quotes)}
         quotes_times = []
 
+        df = pd.DataFrame(self.book_log)
+        df.drop(columns=['QuoteTime'], inplace=True)
+        df = df.sort_index(axis=1)
 
-        # Construct sparse matrix, where rows are timesteps, columns are quotes and elements are volume.
-        S = dok_matrix((log_len, len(quotes)), dtype=int)  # Dictionary Of Keys based sparse matrix.
 
         for i, row in enumerate(tqdm(self.book_log, desc="Processing orderbook log")):
             quotes_times.append(row['QuoteTime'])
-            for quote, vol in row.items():
-                if quote == "QuoteTime":
-                    continue
-                S[i, quote_idx_dict[quote]] = vol
-
-        S = S.tocsc()  # Convert this matrix to Compressed Sparse Column format for pandas to consume.
-        df = pd.DataFrame.sparse.from_spmatrix(S, columns=quotes)
         df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
+        print(getsizeof(df))
+        df.fillna(0, inplace=True)
+        print(getsizeof(df))
+        print(df.dtypes)
         return df
 
     # Print a nicely-formatted view of the current order book.

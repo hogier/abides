@@ -131,6 +131,17 @@ parser.add_argument('--master-window',
                     help='Herd Master wakeup frequency.'
                     )
 
+parser.add_argument('--slave-min-delay',
+                    type=float,
+                    default=1e+2,
+                    help='Herd Slave min delay.'
+                    )
+parser.add_argument('--slave-max-delay',
+                    type=float,
+                    default=1e+8,
+                    help='Herd Slave max delay.'
+                    )
+
 args, remaining_args = parser.parse_known_args()
 
 if args.config_help:
@@ -324,14 +335,18 @@ agent_types.extend(['HerdMasterAgent'])
 
 h_lambda_a = 7e-11
 
-num_value = 60
+
+min_delay = args.slave_min_delay
+max_delay = args.slave_max_delay
+
+num_value = 100
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",
                           symbol=symbol,
                           starting_cash=starting_cash,
-                          min_delay=1e+2,
-                          max_delay=1e+8,
+                          min_delay=min_delay,
+                          max_delay=max_delay,
                           log_orders=log_orders,
                           random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
                for j in range(agent_count, agent_count + num_value)])
