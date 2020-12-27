@@ -31,6 +31,7 @@ class OrderBook:
 
         # Create an empty list of dictionaries to log the full order book depth (price and volume) each time it changes.
         self.book_log = []
+        self.quotes_times = []
         self.quotes_seen = set()
 
         # Create an order history for the exchange to report to certain agent types.
@@ -144,7 +145,8 @@ class OrderBook:
             # Finally, log the full depth of the order book, ONLY if we have been requested to store the order book
             # for later visualization.  (This is slow.)
             if self.owner.book_freq is not None:
-                row = {'QuoteTime': self.owner.currentTime}
+                row = {}
+                self.quotes_times.append({'QuoteTime': self.owner.currentTime})
                 for quote, volume in self.getInsideBids():
                     row[quote] = -volume
                     self.quotes_seen.add(quote)
@@ -508,20 +510,15 @@ class OrderBook:
 
         :return:
         """
-        quotes_times = []
 
-        df = pd.DataFrame(self.book_log)
-        df.drop(columns=['QuoteTime'], inplace=True)
+        quotes_times = []
+        df = pd.DataFrame(self.book_log, dtype="Sparse[float]")
         df = df.sort_index(axis=1)
 
-
-        for i, row in enumerate(tqdm(self.book_log, desc="Processing orderbook log")):
+        for i, row in enumerate(tqdm(self.quotes_times, desc="Processing orderbook log")):
             quotes_times.append(row['QuoteTime'])
+
         df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
-        print(getsizeof(df))
-        df.fillna(0, inplace=True)
-        print(getsizeof(df))
-        print(df.dtypes)
         return df
 
     # Print a nicely-formatted view of the current order book.
@@ -551,4 +548,3 @@ class OrderBook:
         if silent: return book
 
         log_print(book)
-

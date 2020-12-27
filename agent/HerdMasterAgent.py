@@ -141,24 +141,26 @@ class HerdMasterAgent(TradingAgent):
             else:
                 adjust_int = np.random.randint(0, self.depth_spread*spread)
 
-            if self.r_t < r_f:
+            if ask < r_f:
                 buy = True
                 p = ask - adjust_int
                 if p >= r_f:
                     return
-            else:
+            elif bid > r_f:
                 buy = False
                 p = bid + adjust_int
                 size = self.getHoldings(self.symbol) if self.getHoldings(self.symbol) > 0 else self.size
                 if p <= r_f:
                     return
+            else:
+                return
         else:
             return
 
         h = self.getHoldings(self.symbol)
         surplus = self.r_t * h
-        # print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
-        #      self.holdings['CASH'] + surplus)
+        print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
+              self.holdings['CASH'] + surplus)
         if self.currentTime+delta < self.mkt_close:
             self.placeLimitOrder(self.symbol, size, buy, p)
 
