@@ -339,7 +339,7 @@ h_lambda_a = 7e-11
 min_delay = args.slave_min_delay
 max_delay = args.slave_max_delay
 
-num_value = 30
+num_value = 40
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",

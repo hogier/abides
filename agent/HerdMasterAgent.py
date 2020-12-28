@@ -43,7 +43,7 @@ class HerdMasterAgent(TradingAgent):
         self.prev_wake_time = None
 
         self.percent_aggr = 0.1                 # percent of time that the agent will aggres the spread
-        self.size = np.random.randint(20, 50)   # size that the agent will be placing
+        self.size = 5   # size that the agent will be placing
         self.depth_spread = 2
         self.placed_orders = 0
         # for now let's do that the master is defined from the start of the kernel and it is fixed.
@@ -144,6 +144,7 @@ class HerdMasterAgent(TradingAgent):
             if ask < r_f:
                 buy = True
                 p = ask - adjust_int
+                size = self.getHoldings(self.symbol)*(-1) if self.getHoldings(self.symbol) < 0 else self.size
                 if p >= r_f:
                     return
             elif bid > r_f:
@@ -159,8 +160,8 @@ class HerdMasterAgent(TradingAgent):
 
         h = self.getHoldings(self.symbol)
         surplus = self.r_t * h
-        print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
-              self.holdings['CASH'] + surplus)
+        #print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
+        #     self.holdings['CASH'] + surplus)
         if self.currentTime+delta < self.mkt_close:
             self.placeLimitOrder(self.symbol, size, buy, p)
 

@@ -519,6 +519,7 @@ class OrderBook:
             quotes_times.append(row['QuoteTime'])
 
         df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
+
         return df
 
     # Print a nicely-formatted view of the current order book.
