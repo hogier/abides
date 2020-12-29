@@ -13,6 +13,7 @@ from pandas.io.json import json_normalize
 from functools import reduce
 from scipy.sparse import dok_matrix
 from tqdm import tqdm
+import numpy as np
 
 from sys import getsizeof
 
@@ -512,8 +513,14 @@ class OrderBook:
         """
 
         quotes_times = []
-        df = pd.DataFrame(self.book_log, dtype="Sparse[float]")
+        df = pd.DataFrame([], dtype="Sparse[float]", columns=self.quotes_seen)
         df = df.sort_index(axis=1)
+        start, end = 0, 0
+        while start < len(self.book_log):
+            start = end
+            end = np.min([len(self.book_log), end + 1000])
+            df = df.append(self.book_log[start:end])
+        df.reset_index(drop=True, inplace=True)
 
         for i, row in enumerate(tqdm(self.quotes_times, desc="Processing orderbook log")):
             quotes_times.append(row['QuoteTime'])

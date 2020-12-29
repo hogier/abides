@@ -91,11 +91,9 @@ class HerdSlaveAgent(TradingAgent):
             quantity = self.getHoldings(symbol) * (-1) if self.getHoldings(symbol) < 0 else quantity
         else:
             quantity = self.getHoldings(symbol) if self.getHoldings(symbol) > 0 else quantity
-        print(symbol, quantity, is_buy_order, 'here')
         self.placeMarketOrder(symbol, quantity, is_buy_order)
 
         # self.placeLimitOrder(order['symbol'], quantity, order['is_buy_order'], order['limit_price'])
-
 
     def cancelOrders(self):
         if not self.orders: return False
