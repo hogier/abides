@@ -75,25 +75,26 @@ class HerdSlaveAgent(TradingAgent):
                              msg=Message({"msg": "SLAVE_DELAY_RESPONSE", "sender": self.id,
                                           "delay": self.master_delay}))
         elif msg.body['msg'] == "MASTER_ORDER_PLACED":
-            quantity = msg.body['quantity']
             is_buy_order = msg.body['is_buy_order']
             symbol = msg.body['symbol']
-            self.placeOrder(symbol, quantity, is_buy_order)
+            quantity = msg.body['quantity']
+            limit_price = msg.body['limit_price']
+
+            self.cancelOrders()
+            self.placeOrder(symbol, quantity, is_buy_order, limit_price)
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()
         elif msg.body['msg'] == "ORDER_EXECUTED":
             order = msg.body['order']
 
-    def placeOrder(self, symbol, quantity, is_buy_order):
+    def placeOrder(self, symbol, quantity, is_buy_order, limit_price=None):
         bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
-        self.cancelOrders()
         if is_buy_order:
             quantity = self.getHoldings(symbol) * (-1) if self.getHoldings(symbol) < 0 else quantity
         else:
             quantity = self.getHoldings(symbol) if self.getHoldings(symbol) > 0 else quantity
-        self.placeMarketOrder(symbol, quantity, is_buy_order)
 
-        # self.placeLimitOrder(order['symbol'], quantity, order['is_buy_order'], order['limit_price'])
+        self.placeLimitOrder(symbol, quantity, is_buy_order, limit_price)
 
     def cancelOrders(self):
         if not self.orders: return False

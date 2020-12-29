@@ -516,11 +516,15 @@ class OrderBook:
         df = pd.DataFrame([], dtype="Sparse[float]", columns=self.quotes_seen)
         df = df.sort_index(axis=1)
         start, end = 0, 0
+        pbar = tqdm(total=len(self.book_log))
+
         while start < len(self.book_log):
             start = end
-            end = np.min([len(self.book_log), end + 1000])
+            end = np.min([len(self.book_log), end + 10000])
             df = df.append(self.book_log[start:end])
-        df = df.astype("Sparse[float]")
+            df = df.astype("Sparse[float]")
+            pbar.update(end-start)
+        pbar.close()
         df.reset_index(drop=True, inplace=True)
         for i, row in enumerate(tqdm(self.quotes_times, desc="Processing orderbook log")):
             quotes_times.append(row['QuoteTime'])

@@ -292,7 +292,7 @@ agent_types.extend('POVMarketMakerAgent')
 
 
 # 5) Momentum Agents
-num_momentum_agents = 50
+num_momentum_agents = 100
 
 agents.extend([MomentumAgent(id=j,
                              name="MOMENTUM_AGENT_{}".format(j),
@@ -339,7 +339,7 @@ h_lambda_a = 7e-11
 min_delay = args.slave_min_delay
 max_delay = args.slave_max_delay
 
-num_value = 40
+num_value = 60
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",
