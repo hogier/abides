@@ -520,8 +520,8 @@ class OrderBook:
             start = end
             end = np.min([len(self.book_log), end + 1000])
             df = df.append(self.book_log[start:end])
+        df = df.astype("Sparse[float]")
         df.reset_index(drop=True, inplace=True)
-
         for i, row in enumerate(tqdm(self.quotes_times, desc="Processing orderbook log")):
             quotes_times.append(row['QuoteTime'])
 
