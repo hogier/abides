@@ -88,7 +88,7 @@ class HerdSlaveAgent(TradingAgent):
             order = msg.body['order']
 
     def placeOrder(self, symbol, quantity, is_buy_order, limit_price=None):
-        bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
+        #bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
         if is_buy_order:
             quantity = self.getHoldings(symbol) * (-1) if self.getHoldings(symbol) < 0 else quantity
         else:
