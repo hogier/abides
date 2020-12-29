@@ -164,6 +164,10 @@ class HerdMasterAgent(TradingAgent):
         #     self.holdings['CASH'] + surplus)
         if self.currentTime+delta < self.mkt_close:
             self.placeMarketOrder(self.symbol, size, buy)
+            for s_id in self.slave_ids:
+                self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_PLACED", "sender": self.id,
+                                                                "symbol": self.symbol, "quantity": size,
+                                                                "is_buy_order": buy}), delay=self.slave_delays[s_id])
             #self.placeLimitOrder(self.symbol, size, buy, p)
 
 
@@ -183,8 +187,6 @@ class HerdMasterAgent(TradingAgent):
             self.slave_delays[msg.body['sender']] = msg.body['delay']
         elif msg.body['msg'] == "ORDER_ACCEPTED":
             order = msg.body['order']
-            self.placed_orders += 1
-            # print('M', self.currentTime, self.placed_orders)
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
                                                                 "order": order}), delay=self.slave_delays[s_id])

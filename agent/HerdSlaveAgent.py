@@ -74,22 +74,28 @@ class HerdSlaveAgent(TradingAgent):
             self.sendMessage(recipientID=self.master_id,
                              msg=Message({"msg": "SLAVE_DELAY_RESPONSE", "sender": self.id,
                                           "delay": self.master_delay}))
-        elif msg.body['msg'] == "MASTER_ORDER_ACCEPTED":
-            order = msg.body['order'].to_dict()
-            self.placed_orders += 1
-
-            self.cancelOrders()
-            if order['is_buy_order']:
-                quantity = self.getHoldings(self.symbol) * (-1) if self.getHoldings(self.symbol) < 0 else order['quantity']
-            else:
-                quantity = self.getHoldings(self.symbol) if self.getHoldings(self.symbol) > 0 else order['quantity']
-            self.placeMarketOrder(order['symbol'], quantity, order['is_buy_order'])
-            #self.placeLimitOrder(order['symbol'], quantity, order['is_buy_order'], order['limit_price'])
+        elif msg.body['msg'] == "MASTER_ORDER_PLACED":
+            quantity = msg.body['quantity']
+            is_buy_order = msg.body['is_buy_order']
+            symbol = msg.body['symbol']
+            self.placeOrder(symbol, quantity, is_buy_order)
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()
         elif msg.body['msg'] == "ORDER_EXECUTED":
             order = msg.body['order']
-            # print(self.id, order.to_dict())
+
+    def placeOrder(self, symbol, quantity, is_buy_order):
+        bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
+        self.cancelOrders()
+        if is_buy_order:
+            quantity = self.getHoldings(symbol) * (-1) if self.getHoldings(symbol) < 0 else quantity
+        else:
+            quantity = self.getHoldings(symbol) if self.getHoldings(symbol) > 0 else quantity
+        print(symbol, quantity, is_buy_order, 'here')
+        self.placeMarketOrder(symbol, quantity, is_buy_order)
+
+        # self.placeLimitOrder(order['symbol'], quantity, order['is_buy_order'], order['limit_price'])
+
 
     def cancelOrders(self):
         if not self.orders: return False
