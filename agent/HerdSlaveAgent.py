@@ -83,7 +83,8 @@ class HerdSlaveAgent(TradingAgent):
                 quantity = self.getHoldings(self.symbol) * (-1) if self.getHoldings(self.symbol) < 0 else order['quantity']
             else:
                 quantity = self.getHoldings(self.symbol) if self.getHoldings(self.symbol) > 0 else order['quantity']
-            self.placeLimitOrder(order['symbol'], quantity, order['is_buy_order'], order['limit_price'])
+            self.placeMarketOrder(order['symbol'], quantity, order['is_buy_order'])
+            #self.placeLimitOrder(order['symbol'], quantity, order['is_buy_order'], order['limit_price'])
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()
         elif msg.body['msg'] == "ORDER_EXECUTED":

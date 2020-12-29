@@ -163,7 +163,9 @@ class HerdMasterAgent(TradingAgent):
         #print(self.currentTime, self.getHoldings(self.symbol), self.holdings['CASH'], h, surplus,
         #     self.holdings['CASH'] + surplus)
         if self.currentTime+delta < self.mkt_close:
-            self.placeLimitOrder(self.symbol, size, buy, p)
+            self.placeMarketOrder(self.symbol, size, buy)
+            #self.placeLimitOrder(self.symbol, size, buy, p)
+
 
     def receiveMessage(self, currentTime, msg):
         super().receiveMessage(currentTime, msg)
