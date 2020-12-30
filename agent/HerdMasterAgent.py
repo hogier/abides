@@ -43,7 +43,7 @@ class HerdMasterAgent(TradingAgent):
         self.prev_wake_time = None
 
         self.percent_aggr = 0.1                 # percent of time that the agent will aggres the spread
-        self.size = 5   # size that the agent will be placing
+        self.size = 2   # size that the agent will be placing
         self.depth_spread = 2
         self.placed_orders = 0
         # for now let's do that the master is defined from the start of the kernel and it is fixed.
