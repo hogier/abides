@@ -1,4 +1,4 @@
-# HERD-1 (Herd Behavior Simulation Configuration):
+# HERD-2 (Herd Behavior Simulation Configuration):
 # - 1     Exchange Agent
 # - 1     POV Market Maker Agent
 # - 1     Herd Master Agent
@@ -33,7 +33,7 @@ from model.LatencyModel import LatencyModel
 ########################################################################################################################
 ############################################### GENERAL CONFIG #########################################################
 
-parser = argparse.ArgumentParser(description='Detailed options for HERD01 config.')
+parser = argparse.ArgumentParser(description='Detailed options for HERD02 config.')
 
 parser.add_argument('-c',
                     '--config',
@@ -389,11 +389,29 @@ agents.extend(execution_agents)
 agent_types.extend("ExecutionAgent")
 agent_count += 1
 
+# 8) Zero Intelligence Agent
+
+zi = [ (143, 0, 250, 1), (143, 0, 500, 1), (143, 0, 1000, 0.8), (143, 0, 1000, 1), (143, 0, 2000, 0.8), (143, 250, 500, 0.8), (142, 250, 500, 1) ]
+
+# ZI strategy split.  Note that agent arrival rates are quite small, because our minimum
+# time step is a nanosecond, and we want the agents to arrive more on the order of
+# minutes.
+for i,x in enumerate(zi):
+  strat_name = "Type {} [{} <= R <= {}, eta={}]".format(i+1, x[1], x[2], x[3])
+  agents.extend([ ZeroIntelligenceAgent(j, "ZI Agent {} {}".format(j, strat_name),
+                                        "ZeroIntelligenceAgent {}".format(strat_name),
+                                        random_state = np.random.RandomState(seed=np.random.randint(low=0,high=2**32, dtype='uint64')),
+                                        log_orders=log_orders, symbol=symbol, starting_cash=starting_cash,
+                                        sigma_n=sigma_n, r_bar=s['r_bar'], kappa=s['agent_kappa'],
+                                        sigma_s=s['fund_vol'], q_max=10, sigma_pv=5e6, R_min=x[1], R_max=x[2], eta=x[3],
+                                        lambda_a=1e-12) for j in range(agent_count,agent_count+x[0]) ])
+  agent_types.extend([ "ZeroIntelligenceAgent {}".format(strat_name) for j in range(x[0]) ])
+  agent_count += x[0]
 
 ########################################################################################################################
 ########################################### KERNEL AND OTHER CONFIG ####################################################
 
-kernel = Kernel("HERD01 Kernel", random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+kernel = Kernel("HERD02 Kernel", random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
                                                                                                   dtype='uint64')))
 
 kernelStartTime = historical_date
