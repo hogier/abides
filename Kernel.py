@@ -8,6 +8,9 @@ from util.util import log_print
 
 import tqdm
 from datetime import date
+from pympler import muppy, summary
+import time
+from tqdm import tqdm
 
 class Kernel:
 
@@ -191,6 +194,10 @@ class Kernel:
       #stop_second = np.int((self.stopTime - base).total_seconds())
       #pbar = tqdm.tqdm(range(start_second, stop_second))
       #last_time = self.currentTime
+      all_objects = muppy.get_objects()
+      sum1 = summary.summarize(all_objects)
+      summary.print_(sum1)
+
       while not self.messages.empty() and self.currentTime and (self.currentTime <= self.stopTime):
         #elapsed = (self.currentTime- last_time).total_seconds()
         #pbar.update(elapsed)
@@ -292,6 +299,7 @@ class Kernel:
       # other agents, as all agents are still guaranteed to exist).
       # Agents should not destroy resources they may need to respond
       # to final communications from other agents.
+
       log_print ("\n--- Agent.kernelStopping() ---")
       for agent in agents:
         agent.kernelStopping()
@@ -301,8 +309,14 @@ class Kernel:
       # is unknown).  Agents should clean up all used resources as the
       # simulation program may not actually terminate if num_simulations > 1.
       log_print ("\n--- Agent.kernelTerminating() ---")
-      for agent in agents:
+
+      print("Agents termination:")
+      for agent in tqdm(agents):
         agent.kernelTerminating()
+
+      all_objects = muppy.get_objects()
+      sum1 = summary.summarize(all_objects)
+      summary.print_(sum1)
 
       print ("Event Queue elapsed: {}, messages: {}, messages per second: {:0.1f}".format(
              eventQueueWallClockElapsed, ttl_messages, 

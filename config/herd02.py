@@ -295,7 +295,7 @@ agent_types.extend('POVMarketMakerAgent')
 
 
 # 5) Momentum Agents
-num_momentum_agents = 300
+num_momentum_agents = 100
 
 agents.extend([MomentumAgent(id=j,
                              name="MOMENTUM_AGENT_{}".format(j),
@@ -393,7 +393,8 @@ agent_count += 1
 
 # 8) Zero Intelligence Agent
 
-zi = [ (143, 0, 250, 1), (143, 0, 500, 1), (143, 0, 1000, 0.8), (143, 0, 1000, 1), (143, 0, 2000, 0.8), (143, 250, 500, 0.8), (142, 250, 500, 1) ]
+zi = [(100, 0, 250, 1), (100, 0, 500, 1), (100, 0, 1000, 0.8), (100, 0, 1000, 1),
+      (100, 0, 2000, 0.8), (100, 250, 500, 0.8), (100, 250, 500, 1)]
 
 # ZI strategy split.  Note that agent arrival rates are quite small, because our minimum
 # time step is a nanosecond, and we want the agents to arrive more on the order of

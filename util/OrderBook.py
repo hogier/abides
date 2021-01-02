@@ -516,7 +516,7 @@ class OrderBook:
         df = pd.DataFrame([], dtype="Sparse[float]", columns=self.quotes_seen)
         df = df.sort_index(axis=1)
         start, end = 0, 0
-        pbar = tqdm(total=len(self.book_log))
+        pbar = tqdm(total=len(self.book_log), desc="Processing orderbook log")
 
         while start < len(self.book_log):
             start = end
@@ -526,7 +526,7 @@ class OrderBook:
             pbar.update(end-start)
         pbar.close()
         df.reset_index(drop=True, inplace=True)
-        for i, row in enumerate(tqdm(self.quotes_times, desc="Processing orderbook log")):
+        for i, row in enumerate(self.quotes_times):
             quotes_times.append(row['QuoteTime'])
 
         df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
