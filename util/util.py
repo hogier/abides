@@ -3,7 +3,10 @@ import pandas as pd
 from contextlib import contextmanager
 import warnings
 from scipy.spatial.distance import pdist, squareform
+<<<<<<< HEAD
 from enum import Enum
+=======
+>>>>>>> upstream/master
 
 class SymbolType(Enum):
     Stock=1,
