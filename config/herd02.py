@@ -124,7 +124,7 @@ parser.add_argument('--mm-backstop-quantity',
 
 parser.add_argument('--fund-vol',
                     type=float,
-                    default=1e-4,
+                    default=1e-8,
                     help='Volatility of fundamental time series.'
                     )
 
@@ -342,7 +342,7 @@ h_lambda_a = 7e-11
 min_delay = args.slave_min_delay
 max_delay = args.slave_max_delay
 
-num_value = 40
+num_value = 60
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",
@@ -393,8 +393,11 @@ agent_count += 1
 
 # 8) Zero Intelligence Agent
 
-zi = [(100, 0, 250, 1), (100, 0, 500, 1), (100, 0, 1000, 0.8), (100, 0, 1000, 1),
-      (100, 0, 2000, 0.8), (100, 250, 500, 0.8), (100, 250, 500, 1)]
+zi_agents = 700
+zi_by_type = int(zi_agents/7)
+
+zi = [(zi_by_type, 0, 250, 1), (zi_by_type, 0, 500, 1), (zi_by_type, 0, 1000, 0.8), (zi_by_type, 0, 1000, 1),
+      (zi_by_type, 0, 2000, 0.8), (zi_by_type, 250, 500, 0.8), (zi_by_type, 250, 500, 1)]
 
 # ZI strategy split.  Note that agent arrival rates are quite small, because our minimum
 # time step is a nanosecond, and we want the agents to arrive more on the order of

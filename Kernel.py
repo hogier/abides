@@ -197,9 +197,6 @@ class Kernel:
       #stop_second = np.int((self.stopTime - base).total_seconds())
       #pbar = tqdm.tqdm(range(start_second, stop_second))
       #last_time = self.currentTime
-      all_objects = muppy.get_objects()
-      sum1 = summary.summarize(all_objects)
-      summary.print_(sum1)
 
       while not self.messages.empty() and self.currentTime and (self.currentTime <= self.stopTime):
         #elapsed = (self.currentTime- last_time).total_seconds()
@@ -317,10 +314,6 @@ class Kernel:
       for agent in tqdm(agents):
         agent.kernelTerminating()
 
-      all_objects = muppy.get_objects()
-      sum1 = summary.summarize(all_objects)
-      summary.print_(sum1)
-
       print ("Event Queue elapsed: {}, messages: {}, messages per second: {:0.1f}".format(
              eventQueueWallClockElapsed, ttl_messages, 
              ttl_messages / (eventQueueWallClockElapsed / (np.timedelta64(1, 's')))))
@@ -336,7 +329,9 @@ class Kernel:
     # during kernelTerminating, but the Kernel must write out the summary
     # log itself.
     self.writeSummaryLog()
-
+    all_objects = muppy.get_objects()
+    sum1 = summary.summarize(all_objects)
+    summary.print_(sum1)
     # This should perhaps be elsewhere, as it is explicitly financial, but it
     # is convenient to have a quick summary of the results for now.
     print ("Mean ending value by agent type:")

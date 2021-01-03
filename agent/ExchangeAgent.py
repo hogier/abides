@@ -388,13 +388,14 @@ class ExchangeAgent(FinancialAgent):
         dfLog.rename('Volume')
         df = pd.DataFrame({"Volumne" : dfLog})
         df.index = dfLog.index
+        self.writeLog(df, filename=filename)
       else:
-        df = dfLog
-        df = df.reindex(sorted(df.columns), axis=1)
+        dfLog = dfLog.reindex(sorted(dfLog.columns), axis=1)
+        self.writeLog(dfLog, filename=filename)
 
       # Archive the order book snapshots directly to a file named with the symbol, rather than
       # to the exchange agent log.
-      self.writeLog(df, filename=filename)
+
       print("Order book logging complete!")
 
   def sendMessage (self, recipientID, msg):

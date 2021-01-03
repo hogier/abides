@@ -15,8 +15,6 @@ from scipy.sparse import dok_matrix
 from tqdm import tqdm
 import numpy as np
 
-from sys import getsizeof
-
 
 class OrderBook:
 
@@ -32,6 +30,7 @@ class OrderBook:
 
         # Create an empty list of dictionaries to log the full order book depth (price and volume) each time it changes.
         self.book_log = []
+        self.book_log_df = None
         self.quotes_times = []
         self.quotes_seen = set()
 
@@ -159,6 +158,15 @@ class OrderBook:
                     row[quote] = volume
                     self.quotes_seen.add(quote)
                 self.book_log.append(row)
+                if len(self.book_log) > 10000:
+                    if self.book_log_df is None:
+                        self.book_log_df = pd.DataFrame(self.book_log)
+                    else:
+                        self.book_log_df = self.book_log_df.append(self.book_log)
+                    self.book_log_df = self.book_log_df.sort_index(axis=1)
+                    self.book_log_df = self.book_log_df.astype("Sparse[float32]")
+                    print(self.book_log_df.dtypes)
+                    self.book_log = []
         self.last_update_ts = self.owner.currentTime
         self.prettyPrint()
 
@@ -513,25 +521,17 @@ class OrderBook:
         """
 
         quotes_times = []
-        df = pd.DataFrame([], dtype="Sparse[float]", columns=self.quotes_seen)
-        df = df.sort_index(axis=1)
-        start, end = 0, 0
-        pbar = tqdm(total=len(self.book_log), desc="Processing orderbook log")
-
-        while start < len(self.book_log):
-            start = end
-            end = np.min([len(self.book_log), end + 10000])
-            df = df.append(self.book_log[start:end])
-            df = df.astype("Sparse[float]")
-            pbar.update(end-start)
-        pbar.close()
-        df.reset_index(drop=True, inplace=True)
+        self.book_log_df = self.book_log_df.append(self.book_log)
+        self.book_log_df = self.book_log_df.astype("Sparse[float32]")
+        self.book_log_df = self.book_log_df.sort_index(axis=1)
+        self.book_log = []
+        self.book_log_df.reset_index(drop=True, inplace=True)
         for i, row in enumerate(self.quotes_times):
             quotes_times.append(row['QuoteTime'])
+        self.quotes_times = []
+        self.book_log_df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
 
-        df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
-
-        return df
+        return self.book_log_df
 
     # Print a nicely-formatted view of the current order book.
     def prettyPrint(self, silent=False):
