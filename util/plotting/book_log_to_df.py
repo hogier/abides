@@ -2,23 +2,16 @@ import pandas as pd
 import sys
 import os
 
-sys.path.append('../..')
-
-from realism.realism_utils import make_orderbook_for_analysis, MID_PRICE_CUTOFF
-from matplotlib import pyplot as plt
-import matplotlib.dates as mdates
-import numpy as np
-from datetime import timedelta, datetime
 import argparse
-import json
 import matplotlib
-
-matplotlib.rcParams['agg.path.chunksize'] = 10000
 
 from dateutil.parser import parse
 
 import pickle
 from tqdm import tqdm
+
+sys.path.append('../..')
+matplotlib.rcParams['agg.path.chunksize'] = 10000
 
 
 def log_order_book_snapshots(log_dir, symbol, book_freq, wide_book, mkt_open, mkt_close):
