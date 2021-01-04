@@ -15,6 +15,8 @@ from scipy.sparse import dok_matrix
 from tqdm import tqdm
 import numpy as np
 
+import pickle
+import os
 
 class OrderBook:
 
@@ -30,8 +32,8 @@ class OrderBook:
 
         # Create an empty list of dictionaries to log the full order book depth (price and volume) each time it changes.
         self.book_log = []
-        self.book_log_df = None
-        self.quotes_times = []
+        self.book_log_files = []
+        self.book_log_chunk = 0
         self.quotes_seen = set()
 
         # Create an order history for the exchange to report to certain agent types.
@@ -145,8 +147,7 @@ class OrderBook:
             # Finally, log the full depth of the order book, ONLY if we have been requested to store the order book
             # for later visualization.  (This is slow.)
             if self.owner.book_freq is not None:
-                row = {}
-                self.quotes_times.append({'QuoteTime': self.owner.currentTime})
+                row = {'QuoteTime': self.owner.currentTime}
                 for quote, volume in self.getInsideBids():
                     row[quote] = -volume
                     self.quotes_seen.add(quote)
@@ -159,14 +160,10 @@ class OrderBook:
                     self.quotes_seen.add(quote)
                 self.book_log.append(row)
                 if len(self.book_log) > 10000:
-                    if self.book_log_df is None:
-                        self.book_log_df = pd.DataFrame(self.book_log)
-                    else:
-                        self.book_log_df = self.book_log_df.append(self.book_log)
-                    self.book_log_df = self.book_log_df.sort_index(axis=1)
-                    self.book_log_df = self.book_log_df.astype("Sparse[float32]")
-                    print(self.book_log_df.dtypes)
+                    filename = self.owner.writeLog(self.book_log, f'BOOK_LOG_{self.symbol}_CHUNK_{self.book_log_chunk}')
+                    self.book_log_files.append(filename)
                     self.book_log = []
+                    self.book_log_chunk += 1
         self.last_update_ts = self.owner.currentTime
         self.prettyPrint()
 
@@ -507,31 +504,11 @@ class OrderBook:
         return order.order_id == new_order.order_id
 
     def book_log_to_df(self):
-        """ Returns a pandas DataFrame constructed from the order book log, to be consumed by
-            agent.ExchangeAgent.logOrderbookSnapshots.
-
-            The first column of the DataFrame is `QuoteTime`. The succeeding columns are prices quoted during the
-            simulation (as taken from self.quotes_seen).
-
-            Each row is a snapshot at a specific time instance. If there is volume at a certain price level (negative
-            for bids, positive for asks) this volume is written in the column corresponding to the price level. If there
-            is no volume at a given price level, the corresponding column has a `0`.
-
-        :return:
-        """
-
-        quotes_times = []
-        self.book_log_df = self.book_log_df.append(self.book_log)
-        self.book_log_df = self.book_log_df.astype("Sparse[float32]")
-        self.book_log_df = self.book_log_df.sort_index(axis=1)
+        filename = self.owner.writeLog(self.book_log, f'BOOK_LOG_{self.symbol}_CHUNK_{self.book_log_chunk}')
+        self.book_log_files.append(filename)
         self.book_log = []
-        self.book_log_df.reset_index(drop=True, inplace=True)
-        for i, row in enumerate(self.quotes_times):
-            quotes_times.append(row['QuoteTime'])
-        self.quotes_times = []
-        self.book_log_df.insert(0, 'QuoteTime', quotes_times, allow_duplicates=True)
-
-        return self.book_log_df
+        self.book_log_chunk += 1
+        return None
 
     # Print a nicely-formatted view of the current order book.
     def prettyPrint(self, silent=False):

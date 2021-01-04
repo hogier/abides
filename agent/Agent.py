@@ -163,7 +163,7 @@ class Agent:
     self.kernel.delayAgent(sender = self.id, additionalDelay = additionalDelay)
 
   def writeLog (self, dfLog, filename=None):
-    self.kernel.writeLog(self.id, dfLog, filename)
+    return self.kernel.writeLog(self.id, dfLog, filename)
 
   def updateAgentState (self, state):
     """ Agents should use this method to replace their custom state in the dictionary

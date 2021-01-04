@@ -12,6 +12,8 @@ from pympler import muppy, summary
 import time
 from tqdm import tqdm
 
+import pickle
+
 class Kernel:
 
   def __init__(self, kernel_name, random_state = None):
@@ -535,8 +537,12 @@ class Kernel:
     if not os.path.exists(path):
       os.makedirs(path)
 
-    dfLog.to_pickle(os.path.join(path, file), compression='bz2')
-
+    if isinstance(dfLog, pd.DataFrame):
+      dfLog.to_pickle(os.path.join(path, file), compression='bz2')
+    else:
+      with open(os.path.join(path, file), "wb") as output_file:
+        pickle.dump(dfLog, output_file)
+    return os.path.join(path, file)
 
   def appendSummaryLog (self, sender, eventType, event):
     # We don't even include a timestamp, because this log is for one-time-only

@@ -319,84 +319,12 @@ class ExchangeAgent(FinancialAgent):
           self.subscription_dict[agent_id][symbol][2] = orderbook_last_update
 
   def logOrderBookSnapshots(self, symbol):
-    """
-    Log full depth quotes (price, volume) from this order book at some pre-determined frequency. Here we are looking at
-    the actual log for this order book (i.e. are there snapshots to export, independent of the requested frequency).
-    """
-    def get_quote_range_iterator(s):
-      """ Helper method for order book logging. Takes pandas Series and returns python range() from first to last
-          element.
-      """
-      forbidden_values = [0, 19999900] # TODO: Put constant value in more sensible place!
-      quotes = sorted(s)
-      for val in forbidden_values:
-        try: quotes.remove(val)
-        except ValueError:
-          pass
-      return quotes
-
     book = self.order_books[symbol]
 
     if book.book_log:
 
       print("Logging order book to file...")
       dfLog = book.book_log_to_df()
-      dfLog.set_index('QuoteTime', inplace=True)
-      dfLog = dfLog[~dfLog.index.duplicated(keep='last')]
-      dfLog.sort_index(inplace=True)
-
-      if str(self.book_freq).isdigit() and int(self.book_freq) == 0:  # Save all possible information
-        # Get the full range of quotes at the finest possible resolution.
-        quotes = get_quote_range_iterator(dfLog.columns.unique())
-
-        # Restructure the log to have multi-level rows of all possible pairs of time and quote
-        # with volume as the only column.
-        if not self.wide_book:
-          filledIndex = pd.MultiIndex.from_product([dfLog.index, quotes], names=['time', 'quote'])
-          dfLog = dfLog.stack()
-          dfLog = dfLog.reindex(filledIndex)
-
-        filename = f'ORDERBOOK_{symbol}_FULL'
-
-      else:  # Sample at frequency self.book_freq
-        # With multiple quotes in a nanosecond, use the last one, then resample to the requested freq.
-        dfLog = dfLog.resample(self.book_freq).ffill()
-        dfLog.sort_index(inplace=True)
-
-        # Create a fully populated index at the desired frequency from market open to close.
-        # Then project the logged data into this complete index.
-        time_idx = pd.date_range(self.mkt_open, self.mkt_close, freq=self.book_freq, closed='right')
-        dfLog = dfLog.reindex(time_idx, method='ffill')
-        dfLog.sort_index(inplace=True)
-
-        if not self.wide_book:
-          dfLog = dfLog.stack()
-          dfLog.sort_index(inplace=True)
-
-          # Get the full range of quotes at the finest possible resolution.
-          quotes = get_quote_range_iterator(dfLog.index.get_level_values(1).unique())
-
-          # Restructure the log to have multi-level rows of all possible pairs of time and quote
-          # with volume as the only column.
-          filledIndex = pd.MultiIndex.from_product([time_idx, quotes], names=['time', 'quote'])
-          dfLog = dfLog.reindex(filledIndex)
-
-        filename = f'ORDERBOOK_{symbol}_FREQ_{self.book_freq}'
-
-      # Final cleanup
-      if not self.wide_book:
-        dfLog.rename('Volume')
-        df = pd.DataFrame({"Volumne" : dfLog})
-        df.index = dfLog.index
-        self.writeLog(df, filename=filename)
-      else:
-        dfLog = dfLog.reindex(sorted(dfLog.columns), axis=1)
-        self.writeLog(dfLog, filename=filename)
-
-      # Archive the order book snapshots directly to a file named with the symbol, rather than
-      # to the exchange agent log.
-
-      print("Order book logging complete!")
 
   def sendMessage (self, recipientID, msg):
     # The ExchangeAgent automatically applies appropriate parallel processing pipeline delay
