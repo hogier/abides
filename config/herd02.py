@@ -182,17 +182,17 @@ starting_cash = 10000000  # Cash in this simulator is always in CENTS.
 
 r_bar = 1e5
 sigma_n = r_bar / 10
-kappa = 1.67e-12
+kappa = 1.67e-15
 lambda_a = 7e-11
 
 # Oracle
 symbols = {symbol: {'r_bar': r_bar,
-                    'kappa': kappa,
-                    'agent_kappa': 1.67e-15,
+                    'kappa': 1.67e-16,
+                    'agent_kappa': kappa,
 
                     'sigma_s': 0,
                     'fund_vol': args.fund_vol,
-                    'megashock_lambda_a': 2.77778e-13,
+                    'megashock_lambda_a': 2.77778e-18,
                     'megashock_mean': 1e3,
                     'megashock_var': 5e4,
                     'random_state': np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64'))}}
