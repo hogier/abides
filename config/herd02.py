@@ -26,6 +26,7 @@ from agent.ValueAgent import ValueAgent
 from agent.HerdMasterAgent import HerdMasterAgent
 from agent.HerdSlaveAgent import HerdSlaveAgent
 from agent.ZeroIntelligenceAgent import ZeroIntelligenceAgent
+from agent.HeuristicBeliefLearningAgent import HeuristicBeliefLearningAgent
 
 from agent.market_makers.AdaptiveMarketMakerAgent import AdaptiveMarketMakerAgent
 from agent.examples.MomentumAgent import MomentumAgent
@@ -295,8 +296,8 @@ agent_types.extend('POVMarketMakerAgent')
 
 
 # 5) Momentum Agents
-num_momentum_agents = 500
 
+num_momentum_agents = 500
 agents.extend([MomentumAgent(id=j,
                              name="MOMENTUM_AGENT_{}".format(j),
                              type="MomentumAgent",
@@ -304,13 +305,12 @@ agents.extend([MomentumAgent(id=j,
                              starting_cash=starting_cash,
                              min_size=1,
                              max_size=10,
-                             wake_up_freq='20s',
-                             log_orders=log_orders,
+                             log_orders=False,
                              random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
                                                                                        dtype='uint64')))
                for j in range(agent_count, agent_count + num_momentum_agents)])
-agent_count += num_momentum_agents
 agent_types.extend("MomentumAgent")
+agent_count += num_momentum_agents
 
 # 6) Herd Master Agents
 
@@ -393,26 +393,53 @@ agent_count += 1
 
 # 8) Zero Intelligence Agent
 
-zi_agents = 2000
-zi_by_type = int(zi_agents/7)
+num_zi_agents = 1000
+agents.extend([ZeroIntelligenceAgent(id=j,
+                                     name="ZI_AGENT_{}".format(j),
+                                     type="ZeroIntelligenceAgent",
+                                     symbol=symbol,
+                                     starting_cash=starting_cash,
+                                     sigma_n=10000,
+                                     sigma_s=symbols[symbol]['fund_vol'],
+                                     kappa=symbols[symbol]['agent_kappa'],
+                                     r_bar=symbols[symbol]['r_bar'],
+                                     q_max=10,
+                                     sigma_pv=5e4,
+                                     R_min=0,
+                                     R_max=100,
+                                     eta=1,
+                                     lambda_a=1e-12,
+                                     log_orders=False,
+                                     random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+                                                                                               dtype='uint64')))
+               for j in range(agent_count, agent_count + num_zi_agents)])
+agent_types.extend("ZeroIntelligenceAgent")
+agent_count += num_zi_agents
 
-zi = [(zi_by_type, 0, 250, 1), (zi_by_type, 0, 500, 1), (zi_by_type, 0, 1000, 0.8), (zi_by_type, 0, 1000, 1),
-      (zi_by_type, 0, 2000, 0.8), (zi_by_type, 250, 500, 0.8), (zi_by_type, 250, 500, 1)]
-
-# ZI strategy split.  Note that agent arrival rates are quite small, because our minimum
-# time step is a nanosecond, and we want the agents to arrive more on the order of
-# minutes.
-for i,x in enumerate(zi):
-  strat_name = "Type {} [{} <= R <= {}, eta={}]".format(i+1, x[1], x[2], x[3])
-  agents.extend([ ZeroIntelligenceAgent(j, "ZI Agent {} {}".format(j, strat_name),
-                                        "ZeroIntelligenceAgent {}".format(strat_name),
-                                        random_state = np.random.RandomState(seed=np.random.randint(low=0,high=2**32, dtype='uint64')),
-                                        log_orders=log_orders, symbol=symbol, starting_cash=starting_cash,
-                                        sigma_n=sigma_n, r_bar=r_bar, kappa=kappa,
-                                        sigma_s=args.fund_vol, q_max=10, sigma_pv=5e6, R_min=x[1], R_max=x[2], eta=x[3],
-                                        lambda_a=1e-12) for j in range(agent_count,agent_count+x[0]) ])
-  agent_types.extend([ "ZeroIntelligenceAgent {}".format(strat_name) for j in range(x[0]) ])
-  agent_count += x[0]
+# 4) 25 Heuristic Belief Learning Agents
+num_hbl_agents = 500
+agents.extend([HeuristicBeliefLearningAgent(id=j,
+                                            name="HBL_AGENT_{}".format(j),
+                                            type="HeuristicBeliefLearningAgent",
+                                            symbol=symbol,
+                                            starting_cash=starting_cash,
+                                            sigma_n=10000,
+                                            sigma_s=symbols[symbol]['fund_vol'],
+                                            kappa=symbols[symbol]['agent_kappa'],
+                                            r_bar=symbols[symbol]['r_bar'],
+                                            q_max=10,
+                                            sigma_pv=5e4,
+                                            R_min=0,
+                                            R_max=100,
+                                            eta=1,
+                                            lambda_a=1e-12,
+                                            L=2,
+                                            log_orders=False,
+                                            random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+                                                                                                      dtype='uint64')))
+               for j in range(agent_count, agent_count + num_hbl_agents)])
+agent_types.extend("HeuristicBeliefLearningAgent")
+agent_count += num_hbl_agents
 
 ########################################################################################################################
 ########################################### KERNEL AND OTHER CONFIG ####################################################
