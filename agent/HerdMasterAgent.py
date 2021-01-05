@@ -10,7 +10,7 @@ import pandas as pd
 class HerdMasterAgent(TradingAgent):
 
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, sigma_n=0,
-                 future_window=100000, size=10, log_orders=False, random_state=None):
+                 strategy='limit', future_window=100000, size=10, log_orders=False, random_state=None):
 
         # Base class init.
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
@@ -19,6 +19,7 @@ class HerdMasterAgent(TradingAgent):
         self.symbol = symbol  # symbol to trade
         self.sigma_n = sigma_n  # observation noise variance
         self.future_window = future_window
+        self.strategy = strategy
 
         # The agent uses this to track whether it has begun its strategy or is still
         # handling pre-market tasks.
@@ -147,7 +148,14 @@ class HerdMasterAgent(TradingAgent):
             return
 
         if self.currentTime+delta < self.mkt_close:
-            self.placeLimitOrder(self.symbol, size, buy, p)
+            order_type = np.random.choice(['limit', 'market']) if self.strategy == 'mixed' else self.strategy
+
+            if order_type == 'limit':
+                self.placeLimitOrder(self.symbol, size, buy, p)
+            else:
+                p = 0
+                self.placeMarketOrder(self.symbol, size, buy)
+
             for s_id in self.slave_ids:
                 self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_PLACED", "sender": self.id,
                                                                 "symbol": self.symbol, "quantity": size,
