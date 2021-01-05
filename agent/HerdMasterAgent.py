@@ -11,7 +11,7 @@ class HerdMasterAgent(TradingAgent):
 
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, sigma_n=0,
                  r_bar=100000, kappa=0.05, sigma_s=100000, future_window=100000,
-                 lambda_a=0.005, log_orders=False, random_state=None):
+                 lambda_a=0.005, size=10, log_orders=False, random_state=None):
 
         # Base class init.
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
@@ -43,7 +43,7 @@ class HerdMasterAgent(TradingAgent):
         self.prev_wake_time = None
 
         self.percent_aggr = 0.1                 # percent of time that the agent will aggres the spread
-        self.size = 2   # size that the agent will be placing
+        self.size = size   # size that the agent will be placing
         self.depth_spread = 2
         self.placed_orders = 0
         # for now let's do that the master is defined from the start of the kernel and it is fixed.
