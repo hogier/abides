@@ -133,13 +133,17 @@ class HerdMasterAgent(TradingAgent):
             if ask < r_f:
                 buy = True
                 p = ask - adjust_int
-                size = self.getHoldings(self.symbol)*(-1) if self.getHoldings(self.symbol) < 0 else self.size
+                #size = self.getHoldings(self.symbol)*(-1) if self.getHoldings(self.symbol) < 0 else self.size
+
+                size = self.size*2 if self.getHoldings(self.symbol) < 0 else self.size
                 if p >= r_f:
                     return
             elif bid > r_f:
                 buy = False
                 p = bid + adjust_int
-                size = self.getHoldings(self.symbol) if self.getHoldings(self.symbol) > 0 else self.size
+                size = self.size*2 if self.getHoldings(self.symbol) > 0 else self.size
+
+                #size = self.getHoldings(self.symbol) if self.getHoldings(self.symbol) > 0 else self.size
                 if p <= r_f:
                     return
             else:
