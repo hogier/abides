@@ -223,20 +223,7 @@ class SparseMeanRevertingOracle(MeanRevertingOracle):
   
     return open
 
-
-  # Return a noisy observation of the current fundamental value.  While the fundamental
-  # value for a given equity at a given time step does not change, multiple agents
-  # observing that value will receive different observations.
-  #
-  # Only the Exchange or other privileged agents should use sigma_n==0.
-  #
-  # sigma_n is experimental observation variance.  NOTE: NOT STANDARD DEVIATION.
-  #
-  # Each agent must pass its RandomState object to observePrice.  This ensures that
-  # each agent will receive the same answers across multiple same-seed simulations
-  # even if a new agent has been added to the experiment.
-
-  def observePriceSpecial(self, symbol, currentTime, sigma_n = 1000, random_state = None):
+  def observeFuturePrice(self, symbol, currentTime, sigma_n = 1000, random_state = None):
     curr_time = currentTime
     if currentTime >= self.mkt_close:
       curr_time = self.mkt_close - pd.Timedelta('1ns')

@@ -17,8 +17,6 @@ class HerdSlaveAgent(TradingAgent):
 
         self.state = 'AWAITING_WAKEUP'
 
-        self.placed_orders = 0
-
         self.master_id = None
 
     def kernelStarting(self, start_time):
@@ -84,11 +82,8 @@ class HerdSlaveAgent(TradingAgent):
             self.placeOrder(symbol, quantity, is_buy_order, limit_price)
         elif msg.body['msg'] == "MASTER_ORDER_CANCELLED":
             self.cancelOrders()
-        elif msg.body['msg'] == "ORDER_EXECUTED":
-            order = msg.body['order']
 
     def placeOrder(self, symbol, quantity, is_buy_order, limit_price=None):
-        #bid, bid_vol, ask, ask_vol = self.getKnownBidAsk(self.symbol)
         if is_buy_order:
             quantity = self.getHoldings(symbol) * (-1) if self.getHoldings(symbol) < 0 else quantity
         else:
