@@ -160,7 +160,7 @@ future_window = 30e+9
 
 size = 1
 
-strategy = 'mixed'
+strategy = 'limit'
 
 # Historical date to simulate.
 mkt_open = historical_date + pd.to_timedelta(args.start_time.strftime('%H:%M:%S'))
