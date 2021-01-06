@@ -1,4 +1,4 @@
-# HERD-3 (Herd Behavior Simulation Configuration):
+# HERD-4 (Herd Behavior Simulation Configuration):
 # - 1     Exchange Agent
 # - 1     POV Market Maker Agent
 # - 1     Herd Master Agent
@@ -38,7 +38,7 @@ from model.LatencyModel import LatencyModel
 ########################################################################################################################
 ############################################### GENERAL CONFIG #########################################################
 
-parser = argparse.ArgumentParser(description='Detailed options for HERD03 config.')
+parser = argparse.ArgumentParser(description='Detailed options for HERD04 config.')
 
 parser.add_argument('-c',
                     '--config',
@@ -419,7 +419,7 @@ agent_count += num_hbl_agents
 ########################################################################################################################
 ########################################### KERNEL AND OTHER CONFIG ####################################################
 
-kernel = Kernel("HERD03 Kernel", random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+kernel = Kernel("HERD04 Kernel", random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
                                                                                                   dtype='uint64')))
 
 kernelStartTime = historical_date
