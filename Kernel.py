@@ -7,9 +7,6 @@ from message.Message import MessageType
 from util.util import log_print
 
 import tqdm
-from datetime import date
-from pympler import muppy, summary
-import time
 from tqdm import tqdm
 
 import pickle
@@ -331,9 +328,7 @@ class Kernel:
     # during kernelTerminating, but the Kernel must write out the summary
     # log itself.
     self.writeSummaryLog()
-    all_objects = muppy.get_objects()
-    sum1 = summary.summarize(all_objects)
-    summary.print_(sum1)
+
     # This should perhaps be elsewhere, as it is explicitly financial, but it
     # is convenient to have a quick summary of the results for now.
     print ("Mean ending value by agent type:")

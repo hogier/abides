@@ -2,11 +2,15 @@
 # - 1     Exchange Agent
 # - 1     POV Market Maker Agent
 # - 1     Herd Master Agent
-# - 40     Herd Master Agent
-# - 100   Value Agents
-# - 300    Momentum Agents
-# - 5000  Noise Agents
+# - 30    Herd Slave Agent
+# - 100   Value Agent
+# - 500   Momentum Agent
+# - 1000  ZI Agent
+# - 500   HBL Agent
+# - 5000  Noise Agent
 # - 1     (Optional) POV Execution agent
+
+# Mixed strategy, 2 hours, 30 slaves, 100 runs
 
 import argparse
 import numpy as np
@@ -25,6 +29,9 @@ from agent.NoiseAgent import NoiseAgent
 from agent.ValueAgent import ValueAgent
 from agent.HerdMasterAgent import HerdMasterAgent
 from agent.HerdSlaveAgent import HerdSlaveAgent
+from agent.ZeroIntelligenceAgent import ZeroIntelligenceAgent
+from agent.HeuristicBeliefLearningAgent import HeuristicBeliefLearningAgent
+
 from agent.market_makers.AdaptiveMarketMakerAgent import AdaptiveMarketMakerAgent
 from agent.examples.MomentumAgent import MomentumAgent
 from agent.execution.POVExecutionAgent import POVExecutionAgent
@@ -39,23 +46,10 @@ parser.add_argument('-c',
                     '--config',
                     required=True,
                     help='Name of config file to execute')
-parser.add_argument('-t',
-                    '--ticker',
-                    required=True,
-                    help='Ticker (symbol) to use for simulation')
-parser.add_argument('-d', '--historical-date',
-                    required=True,
-                    type=parse,
-                    help='historical date being simulated in format YYYYMMDD.')
 parser.add_argument('--start-time',
                     default='09:30:00',
                     type=parse,
                     help='Starting time of simulation.'
-                    )
-parser.add_argument('--end-time',
-                    default='11:30:00',
-                    type=parse,
-                    help='Ending time of simulation.'
                     )
 parser.add_argument('-l',
                     '--log_dir',
@@ -120,28 +114,6 @@ parser.add_argument('--mm-backstop-quantity',
                     type=float,
                     default=50000)
 
-parser.add_argument('--fund-vol',
-                    type=float,
-                    default=1e-4,
-                    help='Volatility of fundamental time series.'
-                    )
-
-parser.add_argument('--master-window',
-                    type=float,
-                    default=1e+10,
-                    help='Herd Master wakeup frequency.'
-                    )
-
-parser.add_argument('--slave-min-delay',
-                    type=float,
-                    default=1e+2,
-                    help='Herd Slave min delay.'
-                    )
-parser.add_argument('--slave-max-delay',
-                    type=float,
-                    default=1e+8,
-                    help='Herd Slave max delay.'
-                    )
 
 args, remaining_args = parser.parse_known_args()
 
@@ -159,34 +131,52 @@ LimitOrder.silent_mode = not args.verbose
 
 exchange_log_orders = True
 log_orders = False
-book_freq = 0
+book_freq = None
 
 simulation_start_time = dt.datetime.now()
-print("Simulation Start Time: {}".format(simulation_start_time))
+print("Configuration HERD01\n")
+print("Simulation Start Time: {}\n".format(simulation_start_time))
 print("Configuration seed: {}\n".format(seed))
+
 ########################################################################################################################
 ############################################### AGENTS CONFIG ##########################################################
 
-# Historical date to simulate.
-historical_date = pd.to_datetime(args.historical_date)
-mkt_open = historical_date + pd.to_timedelta(args.start_time.strftime('%H:%M:%S'))
-mkt_close = historical_date + pd.to_timedelta(args.end_time.strftime('%H:%M:%S'))
-agent_count, agents, agent_types = 0, [], []
-
 # Hyperparameters
-symbol = args.ticker
+
+historical_date = pd.to_datetime('2021-01-02')
+symbol = 'ABM'
+end_time = parse("9:33:00").strftime('%H:%M:%S')
+
 starting_cash = 10000000  # Cash in this simulator is always in CENTS.
 
 r_bar = 1e5
 sigma_n = r_bar / 10
 kappa = 1.67e-15
 lambda_a = 7e-11
+fund_vol = 1e-8
+
+# Herd hyperparameters
+
+min_delay = 1e+1
+max_delay = 1e+9
+
+future_window = 30e+9
+
+size = 1
+
+strategy = 'mixed'
+
+# Historical date to simulate.
+mkt_open = historical_date + pd.to_timedelta(args.start_time.strftime('%H:%M:%S'))
+mkt_close = historical_date + pd.to_timedelta(end_time)
+agent_count, agents, agent_types = 0, [], []
 
 # Oracle
 symbols = {symbol: {'r_bar': r_bar,
                     'kappa': 1.67e-16,
+                    'agent_kappa': kappa,
                     'sigma_s': 0,
-                    'fund_vol': args.fund_vol,
+                    'fund_vol': fund_vol,
                     'megashock_lambda_a': 2.77778e-18,
                     'megashock_mean': 1e3,
                     'megashock_var': 5e4,
@@ -293,8 +283,8 @@ agent_types.extend('POVMarketMakerAgent')
 
 
 # 5) Momentum Agents
-num_momentum_agents = 300
 
+num_momentum_agents = 500
 agents.extend([MomentumAgent(id=j,
                              name="MOMENTUM_AGENT_{}".format(j),
                              type="MomentumAgent",
@@ -302,45 +292,35 @@ agents.extend([MomentumAgent(id=j,
                              starting_cash=starting_cash,
                              min_size=1,
                              max_size=10,
-                             wake_up_freq='20s',
-                             log_orders=log_orders,
+                             log_orders=False,
                              random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
                                                                                        dtype='uint64')))
                for j in range(agent_count, agent_count + num_momentum_agents)])
-agent_count += num_momentum_agents
 agent_types.extend("MomentumAgent")
+agent_count += num_momentum_agents
 
 # 6) Herd Master Agents
 
-h_lambda_a = 7e-11
-future_window = args.master_window
-
-num_value = 1
+num_herd_masters = 1
 agents.extend([HerdMasterAgent(id=j,
                           name="Herd Master Agent {}".format(j),
                           type="HerdMasterAgent",
                           symbol=symbol,
                           starting_cash=starting_cash,
                           sigma_n=0,
-                          r_bar=r_bar,
-                          kappa=kappa,
-                          lambda_a=h_lambda_a,
+                          strategy=strategy,
                           future_window=future_window,
+                          size=size,
                           log_orders=log_orders,
-                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
-               for j in range(agent_count, agent_count + num_value)])
-agent_count += num_value
+                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+                                                                                    dtype='uint64')))
+               for j in range(agent_count, agent_count + num_herd_masters)])
+agent_count += num_herd_masters
 agent_types.extend(['HerdMasterAgent'])
 
 # 7) Herd Slave Agents
 
-h_lambda_a = 7e-11
-
-
-min_delay = args.slave_min_delay
-max_delay = args.slave_max_delay
-
-num_value = 40
+num_herd_slaves = 30
 agents.extend([HerdSlaveAgent(id=j,
                           name="Herd Slave Agent {}".format(j),
                           type="HerdSlaveAgent",
@@ -349,9 +329,10 @@ agents.extend([HerdSlaveAgent(id=j,
                           min_delay=min_delay,
                           max_delay=max_delay,
                           log_orders=log_orders,
-                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32, dtype='uint64')))
-               for j in range(agent_count, agent_count + num_value)])
-agent_count += num_value
+                          random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+                                                                                    dtype='uint64')))
+               for j in range(agent_count, agent_count + num_herd_slaves)])
+agent_count += num_herd_slaves
 agent_types.extend(['HerdSlaveAgent'])
 
 # 8) Execution Agent
@@ -389,6 +370,55 @@ agents.extend(execution_agents)
 agent_types.extend("ExecutionAgent")
 agent_count += 1
 
+# 9) Zero Intelligence Agents
+
+num_zi_agents = 1000
+agents.extend([ZeroIntelligenceAgent(id=j,
+                                     name="ZI_AGENT_{}".format(j),
+                                     type="ZeroIntelligenceAgent",
+                                     symbol=symbol,
+                                     starting_cash=starting_cash,
+                                     sigma_n=10000,
+                                     sigma_s=symbols[symbol]['fund_vol'],
+                                     kappa=symbols[symbol]['agent_kappa'],
+                                     r_bar=symbols[symbol]['r_bar'],
+                                     q_max=10,
+                                     sigma_pv=5e4,
+                                     R_min=0,
+                                     R_max=100,
+                                     eta=1,
+                                     lambda_a=1e-12,
+                                     log_orders=False,
+                                     random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+                                                                                               dtype='uint64')))
+               for j in range(agent_count, agent_count + num_zi_agents)])
+agent_types.extend("ZeroIntelligenceAgent")
+agent_count += num_zi_agents
+
+# 10) Heuristic Belief Learning Agents
+num_hbl_agents = 500
+agents.extend([HeuristicBeliefLearningAgent(id=j,
+                                            name="HBL_AGENT_{}".format(j),
+                                            type="HeuristicBeliefLearningAgent",
+                                            symbol=symbol,
+                                            starting_cash=starting_cash,
+                                            sigma_n=10000,
+                                            sigma_s=symbols[symbol]['fund_vol'],
+                                            kappa=symbols[symbol]['agent_kappa'],
+                                            r_bar=symbols[symbol]['r_bar'],
+                                            q_max=10,
+                                            sigma_pv=5e4,
+                                            R_min=0,
+                                            R_max=100,
+                                            eta=1,
+                                            lambda_a=1e-12,
+                                            L=2,
+                                            log_orders=False,
+                                            random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32,
+                                                                                                      dtype='uint64')))
+               for j in range(agent_count, agent_count + num_hbl_agents)])
+agent_types.extend("HeuristicBeliefLearningAgent")
+agent_count += num_hbl_agents
 
 ########################################################################################################################
 ########################################### KERNEL AND OTHER CONFIG ####################################################
