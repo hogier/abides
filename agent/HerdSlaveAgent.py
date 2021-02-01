@@ -8,12 +8,19 @@ from message.Message import Message
 class HerdSlaveAgent(TradingAgent):
 
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000,
-                 min_delay=0, max_delay=0, log_orders=False, random_state=None):
-        super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
+                 min_delay=0, max_delay=0, slaves_arrival='uniform',
+                 log_orders=False, random_state=None):
+        super().__init__(id, name, type, starting_cash=starting_cash,
+                         log_orders=log_orders, random_state=random_state)
 
         self.trading = False
         self.symbol = symbol
-        self.master_delay = self.random_state.randint(low=min_delay, high=max_delay)
+        if slaves_arrival == 'uniform':
+            self.master_delay = self.random_state.randint(low=min_delay, high=max_delay)
+        elif slaves_arrival == 'exponential':
+            self.master_delay = int(self.random_state.exponential(scale=1/20)*(min_delay + max_delay)/2)
+        else:
+            self.master_delay = int(self.random_state.pareto(3) * (min_delay + max_delay) / 2)
 
         self.state = 'AWAITING_WAKEUP'
 
@@ -70,9 +77,10 @@ class HerdSlaveAgent(TradingAgent):
         if msg.body['msg'] == "SLAVE_DELAY_REQUEST":
             self.master_id = msg.body['sender']
             self.sendMessage(recipientID=self.master_id,
-                             msg=Message({"msg": "SLAVE_DELAY_RESPONSE", "sender": self.id,
+                             msg=Message({"msg": "SLAVE_DELAY_RESPONSE",
+                                          "sender": self.id,
                                           "delay": self.master_delay}))
-        elif msg.body['msg'] == "MASTER_ORDER_PLACED":
+        elif msg.body['msg'] == "MASTER_ORDER":
             is_buy_order = msg.body['is_buy_order']
             symbol = msg.body['symbol']
             quantity = msg.body['quantity']

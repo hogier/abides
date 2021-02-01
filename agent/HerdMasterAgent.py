@@ -10,7 +10,7 @@ import pandas as pd
 class HerdMasterAgent(TradingAgent):
 
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000, sigma_n=0,
-                 strategy='limit', future_window=100000, size=10, log_orders=False, random_state=None):
+                 strategy='limit', future_window=100000, send_signal='submitted', size=10, log_orders=False, random_state=None):
 
         # Base class init.
         super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
@@ -44,6 +44,13 @@ class HerdMasterAgent(TradingAgent):
         # agent level in the market. Then decides who to follow and make everything more dynamic.
         self.slave_ids = []
         self.slave_delays = {}
+
+        if send_signal == 'submitted':
+            self.send_signal = 'MASTER_ORDER_PLACED'
+        elif send_signal == 'accepted':
+            self.send_signal = 'MASTER_ORDER_ACCEPTED'
+        else:
+            self.send_signal = 'MASTER_ORDER_EXECUTED'
 
     def kernelStarting(self, startTime):
         self.logEvent('WAKE_FREQUENCY', self.future_window, True)
@@ -155,12 +162,15 @@ class HerdMasterAgent(TradingAgent):
             else:
                 p = 0
                 self.placeMarketOrder(self.symbol, size, buy)
-
-            for s_id in self.slave_ids:
-                self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_PLACED", "sender": self.id,
-                                                                "symbol": self.symbol, "quantity": size,
-                                                                "is_buy_order": buy, 'limit_price': p}),
-                                 delay=self.slave_delays[s_id])
+            if self.send_signal == 'MASTER_ORDER_PLACED':
+                for s_id in self.slave_ids:
+                    self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER",
+                                                                    "sender": self.id,
+                                                                    "symbol": self.symbol,
+                                                                    "quantity": size,
+                                                                    "is_buy_order": buy,
+                                                                    'limit_price': p}),
+                                     delay=self.slave_delays[s_id])
 
     def receiveMessage(self, currentTime, msg):
         super().receiveMessage(currentTime, msg)
@@ -176,16 +186,35 @@ class HerdMasterAgent(TradingAgent):
 
         if msg.body['msg'] == "SLAVE_DELAY_RESPONSE":
             self.slave_delays[msg.body['sender']] = msg.body['delay']
+        elif msg.body['msg'] == "ORDER_EXECUTED":
+            order = msg.body['order']
+            if self.send_signal == 'MASTER_ORDER_EXECUTED':
+                for s_id in self.slave_ids:
+                    self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER",
+                                                                    "sender": self.id,
+                                                                    "symbol": self.symbol,
+                                                                    "quantity": order.quantity,
+                                                                    "is_buy_order": order.is_buy_order,
+                                                                    'limit_price': order.limit_price}),
+                                     delay=self.slave_delays[s_id])
         elif msg.body['msg'] == "ORDER_ACCEPTED":
             order = msg.body['order']
-            for s_id in self.slave_ids:
-                self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_ACCEPTED", "sender": self.id,
-                                                                "order": order}), delay=self.slave_delays[s_id])
+            if self.send_signal == 'MASTER_ORDER_ACCEPTED':
+                for s_id in self.slave_ids:
+                    self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER",
+                                                                    "sender": self.id,
+                                                                    "symbol": self.symbol,
+                                                                    "quantity": order.quantity,
+                                                                    "is_buy_order": order.is_buy_order,
+                                                                    'limit_price': order.limit_price}),
+                                     delay=self.slave_delays[s_id])
         elif msg.body['msg'] == "ORDER_CANCELLED":
             order = msg.body['order']
             for s_id in self.slave_ids:
-                self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_CANCELLED", "sender": self.id,
-                                                                "order": order}), delay=self.slave_delays[s_id])
+                self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER_CANCELLED",
+                                                                "sender": self.id,
+                                                                "order": order}),
+                                 delay=self.slave_delays[s_id])
 
     def cancelOrders(self):
         if not self.orders:

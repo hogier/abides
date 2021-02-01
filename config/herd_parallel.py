@@ -13,7 +13,7 @@ def run_in_parallel(num_simulations, num_parallel, min_config, max_config, verbo
     processes = []
     for config in range(int(min_config), int(max_config)+1):
         for seed in global_seeds:
-            processes.append(f'python -u abides.py -c herd0{config} -l herd0{config}_seed_{seed} {"-v" if verbose else ""} -s {seed}')
+            processes.append(f'python -u abides.py -c herd{config:02d} -l herd{config:02d}_seed_{seed} {"-v" if verbose else ""} -s {seed}')
     pool = Pool(processes=num_parallel)
     pool.map(run_process, processes)
 
