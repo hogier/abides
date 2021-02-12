@@ -20,3 +20,9 @@ cd abides
 pip install -r requirements.txt
 ```
 
+## Herd Behavior simulations
+
+The herd behavior configurations go from 9 to 15, the previous ones were deleted because of major changes to the trading agents.
+```
+python -u ./config/herd_parallel.py --config_min 9 --config_max 15 --num_simulations 100 --num_parallel 2 --seed 42
+```
