@@ -10,7 +10,6 @@
 # - 5000  Noise Agent
 # - 1     (Optional) POV Execution agent
 
-# Mixed strategy, 2 hours, 60 slaves, 100 runs
 
 import argparse
 import numpy as np

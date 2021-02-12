@@ -47,8 +47,6 @@ class HerdMasterAgent(TradingAgent):
 
         if send_signal == 'submitted':
             self.send_signal = 'MASTER_ORDER_PLACED'
-        elif send_signal == 'accepted':
-            self.send_signal = 'MASTER_ORDER_ACCEPTED'
         else:
             self.send_signal = 'MASTER_ORDER_EXECUTED'
 
@@ -189,17 +187,6 @@ class HerdMasterAgent(TradingAgent):
         elif msg.body['msg'] == "ORDER_EXECUTED":
             order = msg.body['order']
             if self.send_signal == 'MASTER_ORDER_EXECUTED':
-                for s_id in self.slave_ids:
-                    self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER",
-                                                                    "sender": self.id,
-                                                                    "symbol": self.symbol,
-                                                                    "quantity": order.quantity,
-                                                                    "is_buy_order": order.is_buy_order,
-                                                                    'limit_price': order.limit_price}),
-                                     delay=self.slave_delays[s_id])
-        elif msg.body['msg'] == "ORDER_ACCEPTED":
-            order = msg.body['order']
-            if self.send_signal == 'MASTER_ORDER_ACCEPTED':
                 for s_id in self.slave_ids:
                     self.sendMessage(recipientID=s_id, msg=Message({"msg": "MASTER_ORDER",
                                                                     "sender": self.id,
